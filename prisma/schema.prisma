@@ -1,0 +1,431 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum RolUsuario {
+  TRABAJADOR
+  ADMIN
+  RRHH
+}
+
+enum NivelCurso {
+  BASICO
+  INTERMEDIO
+  AVANZADO
+}
+
+enum TipoLeccion {
+  VIDEO
+  QUIZ
+  LECTURA
+}
+
+enum TipoPregunta {
+  UNICA
+  MULTIPLE
+}
+
+enum TipoRecurso {
+  PDF
+  ENLACE
+  DESCARGA
+}
+
+enum RazonPuntos {
+  COMPLETAR_LECCION
+  APROBAR_QUIZ
+  COMPLETAR_CURSO
+  RACHA_DIAS
+  COMPLETAR_RUTA
+  AJUSTE_ADMIN
+  LOGRO_OBJETIVO
+  SUBIDA_NIVEL
+}
+
+enum CriterioBadge {
+  COMPLETAR_N_CURSOS
+  RACHA_DIAS
+  PUNTOS_ACUMULADOS
+  COMPLETAR_RUTA
+  PRIMER_QUIZ_PERFECTO
+  COMPLETAR_N_LECCIONES
+  COMPLETAR_INDUCCION
+  SUBIR_A_NIVEL
+}
+
+enum PeriodoMetrica {
+  MENSUAL
+  TRIMESTRAL
+  SEMESTRAL
+  ANUAL
+}
+
+enum TipoNotificacion {
+  LOGRO
+  CERTIFICADO
+  NUEVO_CURSO
+  RECORDATORIO
+  SUBIDA_NIVEL
+  OBJETIVO_CUMPLIDO
+  SISTEMA
+}
+
+// ─── Modelos ──────────────────────────────────────────────────────────────────
+
+model User {
+  id                String     @id @default(cuid())
+  email             String     @unique
+  nombre            String
+  apellido          String
+  avatarUrl         String?
+  bio               String?
+  rol               RolUsuario @default(TRABAJADOR)
+  puestoId          String?
+  areaId            String?
+  fechaIngreso      DateTime?
+  nivel             Int        @default(1)
+  puntosTotales     Int        @default(0)
+  rachaActual       Int        @default(0)
+  ultimaActividad   DateTime?
+  activo            Boolean    @default(true)
+  mostrarEnRanking  Boolean    @default(true)
+  preferenciasEmail Json?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  puesto         Puesto?             @relation(fields: [puestoId], references: [id], onDelete: SetNull)
+  area           Area?               @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  progresos      ProgresoLeccion[]
+  intentosQuiz   IntentoQuiz[]
+  badges         UserBadge[]
+  transacciones  TransaccionPuntos[]
+  certificados   Certificado[]
+  metricas       MetricaDesempeno[]
+  notificaciones Notificacion[]
+  notas          LeccionNota[]
+
+  @@index([email])
+  @@index([areaId])
+  @@index([puestoId])
+}
+
+model Area {
+  id          String  @id @default(cuid())
+  nombre      String  @unique
+  descripcion String?
+  color       String
+  icono       String
+
+  puestos Puesto[]
+  cursos  Curso[]
+  users   User[]
+}
+
+model Puesto {
+  id          String  @id @default(cuid())
+  nombre      String
+  nivel       Int
+  areaId      String
+  descripcion String?
+  orden       Int     @default(0)
+
+  area         Area          @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  users        User[]
+  rutasOrigen  RutaCarrera[] @relation("PuestoOrigen")
+  rutasDestino RutaCarrera[] @relation("PuestoDestino")
+
+  @@index([areaId])
+}
+
+model RutaCarrera {
+  id              String  @id @default(cuid())
+  puestoOrigenId  String
+  puestoDestinoId String
+  titulo          String
+  descripcion     String?
+  activa          Boolean @default(true)
+
+  puestoOrigen  Puesto               @relation("PuestoOrigen", fields: [puestoOrigenId], references: [id], onDelete: Restrict)
+  puestoDestino Puesto               @relation("PuestoDestino", fields: [puestoDestinoId], references: [id], onDelete: Restrict)
+  cursos        RutaCarreraCurso[]
+  metricas      RutaCarreraMetrica[]
+
+  @@unique([puestoOrigenId, puestoDestinoId])
+}
+
+model RutaCarreraCurso {
+  rutaCarreraId String
+  cursoId       String
+  requerido     Boolean @default(true)
+  orden         Int
+
+  rutaCarrera RutaCarrera @relation(fields: [rutaCarreraId], references: [id], onDelete: Cascade)
+  curso       Curso       @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+
+  @@id([rutaCarreraId, cursoId])
+}
+
+model RutaCarreraMetrica {
+  id            String         @id @default(cuid())
+  rutaCarreraId String
+  nombre        String
+  descripcion   String?
+  valorObjetivo Float
+  unidad        String
+  periodo       PeriodoMetrica
+
+  rutaCarrera RutaCarrera @relation(fields: [rutaCarreraId], references: [id], onDelete: Cascade)
+}
+
+model Curso {
+  id                  String     @id @default(cuid())
+  slug                String     @unique
+  titulo              String
+  descripcion         String
+  descripcionCorta    String?
+  thumbnailUrl        String?
+  duracionMinutos     Int
+  nivel               NivelCurso
+  areaId              String?
+  publicado           Boolean    @default(false)
+  puntosRecompensa    Int        @default(100)
+  instructorNombre    String
+  instructorAvatarUrl String?
+  orden               Int        @default(0)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  area         Area?              @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  modulos      Modulo[]
+  certificados Certificado[]
+  rutas        RutaCarreraCurso[]
+
+  @@index([slug])
+  @@index([areaId])
+  @@index([publicado])
+}
+
+model Modulo {
+  id          String  @id @default(cuid())
+  cursoId     String
+  titulo      String
+  descripcion String?
+  orden       Int
+
+  curso     Curso     @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  lecciones Leccion[]
+
+  @@unique([cursoId, orden])
+}
+
+model Leccion {
+  id                String      @id @default(cuid())
+  moduloId          String
+  slug              String
+  titulo            String
+  descripcion       String?
+  tipo              TipoLeccion
+  bunnyVideoId      String?
+  contenidoMarkdown String?     @db.Text
+  duracionSegundos  Int         @default(0)
+  orden             Int
+  puntosRecompensa  Int         @default(10)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  modulo    Modulo            @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  quiz      Quiz?
+  recursos  RecursoLeccion[]
+  progresos ProgresoLeccion[]
+  notas     LeccionNota[]
+
+  @@unique([moduloId, slug])
+  @@index([moduloId])
+}
+
+model RecursoLeccion {
+  id        String      @id @default(cuid())
+  leccionId String
+  nombre    String
+  url       String
+  tipo      TipoRecurso
+  orden     Int
+
+  leccion Leccion @relation(fields: [leccionId], references: [id], onDelete: Cascade)
+}
+
+model LeccionNota {
+  id             String   @id @default(cuid())
+  userId         String
+  leccionId      String
+  contenido      String   @db.Text
+  timestampVideo Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leccion Leccion @relation(fields: [leccionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, leccionId])
+}
+
+model ProgresoLeccion {
+  userId           String
+  leccionId        String
+  completada       Boolean   @default(false)
+  porcentajeVisto  Int       @default(0)
+  fechaUltimaVista DateTime  @default(now())
+  fechaCompletada  DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leccion Leccion @relation(fields: [leccionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, leccionId])
+  @@index([userId])
+}
+
+model Quiz {
+  id            String  @id @default(cuid())
+  leccionId     String  @unique
+  titulo        String
+  descripcion   String?
+  puntajeMinimo Int     @default(70)
+
+  leccion   Leccion       @relation(fields: [leccionId], references: [id], onDelete: Cascade)
+  preguntas Pregunta[]
+  intentos  IntentoQuiz[]
+}
+
+model Pregunta {
+  id          String       @id @default(cuid())
+  quizId      String
+  texto       String       @db.Text
+  tipo        TipoPregunta
+  orden       Int
+  explicacion String?
+
+  quiz     Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  opciones OpcionRespuesta[]
+}
+
+model OpcionRespuesta {
+  id         String  @id @default(cuid())
+  preguntaId String
+  texto      String
+  esCorrecta Boolean
+  orden      Int
+
+  pregunta Pregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
+}
+
+model IntentoQuiz {
+  id         String   @id @default(cuid())
+  userId     String
+  quizId     String
+  puntaje    Int
+  aprobado   Boolean
+  respuestas Json
+  fecha      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([userId, quizId, fecha])
+}
+
+model Badge {
+  id               String        @id @default(cuid())
+  codigo           String        @unique
+  nombre           String
+  descripcion      String
+  iconoUrl         String
+  criterioTipo     CriterioBadge
+  criterioValor    Json
+  puntosRecompensa Int           @default(50)
+  orden            Int           @default(0)
+
+  usuarios UserBadge[]
+}
+
+model UserBadge {
+  userId         String
+  badgeId        String
+  fechaObtencion DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeId])
+}
+
+model TransaccionPuntos {
+  id           String      @id @default(cuid())
+  userId       String
+  cantidad     Int
+  razon        RazonPuntos
+  descripcion  String
+  referenciaId String?
+  fecha        DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, fecha])
+}
+
+model Certificado {
+  id                 String   @id @default(cuid())
+  userId             String
+  cursoId            String
+  codigoVerificacion String   @unique
+  fechaEmision       DateTime @default(now())
+  urlPdf             String?
+  horasEquivalentes  Int
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  curso Curso @relation(fields: [cursoId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, cursoId])
+  @@index([codigoVerificacion])
+}
+
+model MetricaDesempeno {
+  id                String         @id @default(cuid())
+  userId            String
+  tipo              String
+  nombre            String
+  descripcion       String?
+  valor             Float
+  objetivo          Float
+  unidad            String
+  periodo           PeriodoMetrica
+  fechaInicio       DateTime
+  fechaFin          DateTime
+  objetivoAlcanzado Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, periodo, fechaFin])
+}
+
+model Notificacion {
+  id      String           @id @default(cuid())
+  userId  String
+  tipo    TipoNotificacion
+  titulo  String
+  mensaje String
+  url     String?
+  leida   Boolean          @default(false)
+  fecha   DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, leida, fecha])
+}

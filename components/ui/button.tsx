@@ -46,10 +46,14 @@ function Button({
   size = "default",
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // When render prop is used (e.g. render={<Link />}), the rendered
+  // element is not a native <button>, so we disable nativeButton.
+  const hasRender = "render" in props && props.render != null;
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      {...(hasRender ? { nativeButton: false } : {})}
       {...props}
     />
   )
