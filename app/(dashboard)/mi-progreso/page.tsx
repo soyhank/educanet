@@ -5,6 +5,7 @@ import { RangoActualDestacado } from "@/components/mi-progreso/RangoActualDestac
 import { BreakdownXPFuentes } from "@/components/mi-progreso/BreakdownXPFuentes";
 import { CumplimientoKPIsResumen } from "@/components/mi-progreso/CumplimientoKPIsResumen";
 import { AccionesSugeridas } from "@/components/mi-progreso/AccionesSugeridas";
+import { MisionesSemana } from "@/components/mi-progreso/MisionesSemana";
 
 const MESES_ES = [
   "enero",
@@ -64,6 +65,8 @@ export default async function MiProgresoPage() {
           hayDatosSuficientes={progreso.hayDatosSuficientesKpis}
         />
       </div>
+
+      <MisionesSemana userId={user.id} />
 
       <AccionesSugeridas progreso={progreso} />
     </div>

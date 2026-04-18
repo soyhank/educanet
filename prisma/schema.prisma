@@ -96,6 +96,36 @@ enum FuenteXP {
   SISTEMA
 }
 
+enum VisibilidadReconocimiento {
+  PUBLICO
+  PRIVADO
+}
+
+enum TipoMision {
+  COMPLETAR_CURSO
+  AVANZAR_KPI
+  COMPLETAR_N_LECCIONES
+  OBTENER_BADGE
+  RECONOCER_PEER
+  REPORTAR_KPI
+  PERSONALIZADA
+}
+
+enum EstadoMision {
+  ACTIVA
+  COMPLETADA
+  VENCIDA
+  CANCELADA
+}
+
+enum EstadoCompromiso {
+  PENDIENTE
+  CUMPLIDO_AUTO
+  CUMPLIDO
+  ATRASADO
+  NO_CUMPLIDO
+}
+
 enum CriterioBadge {
   COMPLETAR_N_CURSOS
   RACHA_DIAS
@@ -169,6 +199,12 @@ model User {
   kpiRegistros        KpiRegistroSemanal[]
   rangosMensuales     RangoMensual[]
   eventosGamificacion EventoGamificacion[]
+
+  reconocimientosDados     Reconocimiento[] @relation("ReconocimientosDados")
+  reconocimientosRecibidos Reconocimiento[] @relation("ReconocimientosRecibidos")
+  misiones                 Mision[]
+  compromisos              Compromiso[]
+  validacionesCompromisos  Compromiso[]     @relation("ValidacionesCompromisos")
 
   @@index([email])
   @@index([areaId])
@@ -268,6 +304,7 @@ model Curso {
   rutas               RutaCarreraCurso[]
   relacionadosOrigen  CursoRelacionado[] @relation("CursosRelacionadosOrigen")
   relacionadosDestino CursoRelacionado[] @relation("CursosRelacionadosDestino")
+  misionesAsociadas   Mision[]
 
   @@index([slug])
   @@index([areaId])
@@ -579,8 +616,9 @@ model PuestoKpiDefinicion {
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
-  puesto       Puesto          @relation(fields: [puestoId], references: [id], onDelete: Cascade)
-  asignaciones KpiAsignacion[]
+  puesto            Puesto          @relation(fields: [puestoId], references: [id], onDelete: Cascade)
+  asignaciones      KpiAsignacion[]
+  misionesAsociadas Mision[]
 
   @@unique([puestoId, codigo])
   @@index([puestoId])
@@ -678,4 +716,87 @@ model EventoGamificacion {
   @@index([userId, anioPeriodo, mesPeriodo])
   @@index([tipo])
   @@index([fuente])
+}
+
+model CategoriaReconocimiento {
+  id              String           @id @default(cuid())
+  codigo          String           @unique
+  nombre          String
+  descripcion     String
+  emoji           String?
+  color           String
+  activa          Boolean          @default(true)
+  orden           Int              @default(0)
+  reconocimientos Reconocimiento[]
+}
+
+model Reconocimiento {
+  id              String                    @id @default(cuid())
+  nominadorId     String
+  reconocidoId    String
+  categoriaId     String
+  mensaje         String                    @db.Text
+  semanaDelAnio   Int
+  anio            Int
+  puntosOtorgados Int                       @default(30)
+  visibilidad     VisibilidadReconocimiento @default(PUBLICO)
+  createdAt       DateTime                  @default(now())
+
+  nominador  User                    @relation("ReconocimientosDados", fields: [nominadorId], references: [id], onDelete: Cascade)
+  reconocido User                    @relation("ReconocimientosRecibidos", fields: [reconocidoId], references: [id], onDelete: Cascade)
+  categoria  CategoriaReconocimiento @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+
+  @@index([reconocidoId, anio, semanaDelAnio])
+  @@index([nominadorId, anio, semanaDelAnio])
+}
+
+model Mision {
+  id               String       @id @default(cuid())
+  userId           String
+  titulo           String
+  descripcion      String       @db.Text
+  tipo             TipoMision
+  semanaDelAnio    Int
+  anio             Int
+  puntosRecompensa Int          @default(30)
+  metaValor        Int?
+  progresoActual   Int          @default(0)
+  cursoId          String?
+  kpiDefinicionId  String?
+  estado           EstadoMision @default(ACTIVA)
+  completadaEn     DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  curso         Curso?               @relation(fields: [cursoId], references: [id], onDelete: SetNull)
+  kpiDefinicion PuestoKpiDefinicion? @relation(fields: [kpiDefinicionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, anio, semanaDelAnio, estado])
+}
+
+model Compromiso {
+  id                    String           @id @default(cuid())
+  userId                String
+  titulo                String
+  descripcion           String?          @db.Text
+  fechaLimite           DateTime
+  fechaCumplimiento     DateTime?
+  semanaDelAnio         Int
+  anio                  Int
+  estado                EstadoCompromiso @default(PENDIENTE)
+  autoReportadoCumplido Boolean          @default(false)
+  validadoPorId         String?
+  validadoEn            DateTime?
+  validacionComentario  String?          @db.Text
+  puntosOtorgados       Int              @default(0)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  validadoPor User? @relation("ValidacionesCompromisos", fields: [validadoPorId], references: [id])
+
+  @@index([userId, estado])
+  @@index([userId, anio, semanaDelAnio])
+  @@index([fechaLimite])
 }

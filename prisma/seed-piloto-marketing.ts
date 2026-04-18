@@ -388,6 +388,226 @@ async function main() {
   console.log(`  Registros semanales: ${totalRegistros}`);
   console.log(`  Eventos seed: ${totalEventos}`);
   console.log(`  Usuarios piloto sembrados: ${usuariosPiloto.length}`);
+
+  // ─── Categorias de reconocimiento ──────────────────────────────────────
+  const CATEGORIAS = [
+    { codigo: "COLABORACION", nombre: "Gran colaborador", descripcion: "Ayudo mas alla de lo pedido, apoyo a otros roles", emoji: "🤝", color: "#3B82F6", orden: 1 },
+    { codigo: "EXCELENCIA", nombre: "Excelencia en entregables", descripcion: "Calidad superior en un trabajo concreto", emoji: "🎯", color: "#10B981", orden: 2 },
+    { codigo: "INNOVACION", nombre: "Idea brillante", descripcion: "Propuesta creativa que mejoro un proceso o resultado", emoji: "💡", color: "#F59E0B", orden: 3 },
+    { codigo: "ACTITUD", nombre: "Actitud ejemplar", descripcion: "Mantuvo energia positiva en un momento retador", emoji: "⚡", color: "#EC4899", orden: 4 },
+    { codigo: "IMPACTO", nombre: "Impacto en resultados", descripcion: "Su trabajo movio la aguja en un KPI del equipo", emoji: "🚀", color: "#8B5CF6", orden: 5 },
+    { codigo: "APRENDIZAJE", nombre: "Mentor del equipo", descripcion: "Compartio conocimiento, enseño a otros", emoji: "📚", color: "#14B8A6", orden: 6 },
+  ];
+  for (const c of CATEGORIAS) {
+    await prisma.categoriaReconocimiento.upsert({
+      where: { codigo: c.codigo },
+      create: c,
+      update: c,
+    });
+  }
+  const cats = await prisma.categoriaReconocimiento.findMany({
+    orderBy: { orden: "asc" },
+  });
+  console.log(`  Categorias reconocimiento: ${cats.length}`);
+
+  // ─── Reconocimientos demo entre los 5 del piloto ──────────────────────
+  const userIds = usuariosPiloto.map((u) => u.user.id);
+  await prisma.reconocimiento.deleteMany({
+    where: {
+      OR: [
+        { nominadorId: { in: userIds } },
+        { reconocidoId: { in: userIds } },
+      ],
+    },
+  });
+
+  const textosDemo = [
+    "Me ayudo fuera de horario con el pitch del cliente. La pieza quedo impecable.",
+    "Propuso una idea para reducir el tiempo de entrega que aplicamos el mismo dia.",
+    "Reviso mi draft con atencion al detalle y me salvo de 2 errores importantes.",
+    "Presento resultados al directorio con mucha claridad. Gran representacion del equipo.",
+    "En una semana dificil mantuvo a todos enfocados sin bajar la moral.",
+    "Capacito al equipo nuevo con paciencia y estructura. Aporto valor real.",
+    "Conecto con el cliente dificil y logro destrabar el proyecto.",
+    "Su analisis de metricas nos ahorro 30% del budget de la campana.",
+  ];
+
+  const recsDemo: Array<[number, number, number, number]> = [
+    [0, 1, 0, 1],
+    [3, 0, 1, 0],
+    [2, 3, 2, 2],
+    [4, 2, 0, 3],
+    [1, 3, 4, 4],
+    [3, 4, 5, 5],
+    [0, 2, 3, 6],
+    [1, 4, 2, 7],
+  ];
+
+  let recCreados = 0;
+  for (let i = 0; i < recsDemo.length; i++) {
+    const [nomIdx, recIdx, catIdx, textoIdx] = recsDemo[i];
+    const nominador = usuariosPiloto[nomIdx].user;
+    const reconocido = usuariosPiloto[recIdx].user;
+    if (nominador.id === reconocido.id) continue;
+    const semana = i < 4 ? semanaActual - 1 : semanaActual;
+    await prisma.reconocimiento.create({
+      data: {
+        nominadorId: nominador.id,
+        reconocidoId: reconocido.id,
+        categoriaId: cats[catIdx].id,
+        mensaje: textosDemo[textoIdx],
+        semanaDelAnio: Math.max(1, semana),
+        anio,
+        puntosOtorgados: 30,
+      },
+    });
+    await prisma.eventoGamificacion.create({
+      data: {
+        userId: reconocido.id,
+        tipo: "RECONOCIMIENTO_RECIBIDO",
+        fuente: "RECONOCIMIENTOS",
+        cantidad: 30,
+        cantidadBruta: 30,
+        mesPeriodo: mes,
+        anioPeriodo: anio,
+      },
+    });
+    recCreados++;
+  }
+  console.log(`  Reconocimientos demo: ${recCreados}`);
+
+  // ─── Misiones de la semana para cada user ─────────────────────────────
+  await prisma.mision.deleteMany({
+    where: { userId: { in: userIds }, semanaDelAnio: semanaActual, anio },
+  });
+
+  const { generarMisionesSemanalesUsuario } = await import(
+    "../lib/misiones/generador"
+  );
+  let misionesGeneradas = 0;
+  for (const u of usuariosPiloto) {
+    const r = await generarMisionesSemanalesUsuario({
+      userId: u.user.id,
+      semanaDelAnio: semanaActual,
+      anio,
+    });
+    misionesGeneradas += r.generadas;
+  }
+  console.log(`  Misiones generadas: ${misionesGeneradas}`);
+
+  // ─── Compromisos demo (mix de estados) ────────────────────────────────
+  await prisma.compromiso.deleteMany({
+    where: { userId: { in: userIds } },
+  });
+
+  const hoy = new Date();
+  const en3 = new Date();
+  en3.setDate(en3.getDate() + 3);
+  const hace2 = new Date();
+  hace2.setDate(hace2.getDate() - 2);
+  const hace5 = new Date();
+  hace5.setDate(hace5.getDate() - 5);
+
+  let comprCreados = 0;
+  for (let i = 0; i < usuariosPiloto.length; i++) {
+    const u = usuariosPiloto[i].user;
+
+    // Pendiente futuro
+    await prisma.compromiso.create({
+      data: {
+        userId: u.id,
+        titulo: [
+          "Entregar draft del newsletter semanal",
+          "Publicar 3 piezas en redes segun calendario",
+          "Terminar wireframes del landing",
+          "Review de metricas del mes con el equipo",
+          "Coordinar proveedores del evento del viernes",
+        ][i],
+        descripcion: null,
+        fechaLimite: en3,
+        semanaDelAnio: semanaActual,
+        anio,
+        estado: "PENDIENTE",
+      },
+    });
+    comprCreados++;
+
+    // Cumplido pasado (con evento)
+    const c2 = await prisma.compromiso.create({
+      data: {
+        userId: u.id,
+        titulo: [
+          "Revision del calendario editorial",
+          "Setup de Google Tag Manager",
+          "Banner del lanzamiento",
+          "1:1 con el equipo",
+          "Checklist del evento anterior",
+        ][i],
+        fechaLimite: hace2,
+        fechaCumplimiento: hace2,
+        semanaDelAnio: Math.max(1, semanaActual - 1),
+        anio,
+        estado: "CUMPLIDO",
+        autoReportadoCumplido: true,
+        validadoEn: new Date(),
+        puntosOtorgados: 25,
+      },
+    });
+    await prisma.eventoGamificacion.create({
+      data: {
+        userId: u.id,
+        tipo: "COMPROMISO_CUMPLIDO",
+        fuente: "COMPROMISOS",
+        cantidad: 25,
+        cantidadBruta: 25,
+        referenciaId: c2.id,
+        mesPeriodo: mes,
+        anioPeriodo: anio,
+      },
+    });
+    comprCreados++;
+
+    // Uno cumplido_auto esperando validacion (solo para 3 users)
+    if (i < 3) {
+      await prisma.compromiso.create({
+        data: {
+          userId: u.id,
+          titulo: [
+            "Cerrar reporte de CPL del mes",
+            "Subir assets al brand kit",
+            "Presupuesto del evento de julio",
+          ][i],
+          fechaLimite: hace2,
+          fechaCumplimiento: new Date(),
+          semanaDelAnio: semanaActual,
+          anio,
+          estado: "CUMPLIDO_AUTO",
+          autoReportadoCumplido: true,
+        },
+      });
+      comprCreados++;
+    }
+
+    // Atrasado (solo user 0 y 1, para mostrar el estado)
+    if (i < 2) {
+      await prisma.compromiso.create({
+        data: {
+          userId: u.id,
+          titulo: [
+            "Revisar analytics del lanzamiento",
+            "Optimizar 2 campañas de Meta",
+          ][i],
+          fechaLimite: hace5,
+          semanaDelAnio: Math.max(1, semanaActual - 1),
+          anio,
+          estado: "ATRASADO",
+        },
+      });
+      comprCreados++;
+    }
+  }
+  console.log(`  Compromisos demo: ${comprCreados}`);
+
   console.log("\nListo.");
 }
 

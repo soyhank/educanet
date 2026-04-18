@@ -151,6 +151,21 @@ export async function procesarEvento(
     );
   }
 
+  // Hook de misiones: actualiza progreso segun el evento recien registrado.
+  // No bloquea el flujo si falla.
+  try {
+    const { verificarMisionesTrasEvento } = await import(
+      "@/lib/misiones/hooks"
+    );
+    await verificarMisionesTrasEvento({
+      userId: evento.userId,
+      tipoEvento: evento.tipo,
+      referenciaId: evento.referenciaId,
+    });
+  } catch {
+    // silencioso
+  }
+
   return {
     eventoId: eventoRegistrado.id,
     puntosBrutos: evento.puntosBrutos,

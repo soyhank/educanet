@@ -463,3 +463,69 @@ CREATE POLICY "evento_select_propio_o_admin" ON public."EventoGamificacion"
     auth.uid()::text = "userId"
     OR public.current_user_rol() IN ('ADMIN', 'RRHH')
   );
+
+-- Reconocimientos + Misiones + Compromisos (Prompt 16B)
+ALTER TABLE public."CategoriaReconocimiento" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Reconocimiento" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Mision" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Compromiso" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "cat_recon_select_all" ON public."CategoriaReconocimiento"
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "cat_recon_admin" ON public."CategoriaReconocimiento"
+  FOR ALL TO authenticated
+  USING (public.current_user_rol() IN ('ADMIN', 'RRHH'));
+
+CREATE POLICY "recon_select_publico_propio_o_admin" ON public."Reconocimiento"
+  FOR SELECT TO authenticated
+  USING (
+    visibilidad = 'PUBLICO'
+    OR auth.uid()::text = "nominadorId"
+    OR auth.uid()::text = "reconocidoId"
+    OR public.current_user_rol() IN ('ADMIN', 'RRHH')
+  );
+CREATE POLICY "recon_insert_nominador" ON public."Reconocimiento"
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid()::text = "nominadorId");
+CREATE POLICY "recon_delete_propio_o_admin" ON public."Reconocimiento"
+  FOR DELETE TO authenticated
+  USING (
+    auth.uid()::text = "nominadorId"
+    OR public.current_user_rol() IN ('ADMIN', 'RRHH')
+  );
+
+CREATE POLICY "mision_select_propio_o_admin" ON public."Mision"
+  FOR SELECT TO authenticated
+  USING (
+    auth.uid()::text = "userId"
+    OR public.current_user_rol() IN ('ADMIN', 'RRHH')
+  );
+CREATE POLICY "mision_write_admin" ON public."Mision"
+  FOR ALL TO authenticated
+  USING (public.current_user_rol() IN ('ADMIN', 'RRHH'));
+CREATE POLICY "mision_update_progreso_propio" ON public."Mision"
+  FOR UPDATE TO authenticated
+  USING (auth.uid()::text = "userId")
+  WITH CHECK (auth.uid()::text = "userId");
+
+CREATE POLICY "compromiso_select_propio_o_admin" ON public."Compromiso"
+  FOR SELECT TO authenticated
+  USING (
+    auth.uid()::text = "userId"
+    OR public.current_user_rol() IN ('ADMIN', 'RRHH')
+  );
+CREATE POLICY "compromiso_insert_propio" ON public."Compromiso"
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid()::text = "userId");
+CREATE POLICY "compromiso_update_propio_o_admin" ON public."Compromiso"
+  FOR UPDATE TO authenticated
+  USING (
+    auth.uid()::text = "userId"
+    OR public.current_user_rol() IN ('ADMIN', 'RRHH')
+  );
+CREATE POLICY "compromiso_delete_propio_pendiente" ON public."Compromiso"
+  FOR DELETE TO authenticated
+  USING (
+    (auth.uid()::text = "userId" AND estado = 'PENDIENTE')
+    OR public.current_user_rol() IN ('ADMIN', 'RRHH')
+  );
