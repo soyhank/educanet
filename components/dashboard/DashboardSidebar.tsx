@@ -14,6 +14,7 @@ import {
   PanelLeft,
   LogOut,
   Settings,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -46,6 +47,7 @@ const sections: { title: string; items: NavItem[] }[] = [
   {
     title: "Crecer",
     items: [
+      { label: "Mi progreso", href: "/mi-progreso", icon: Target },
       { label: "Mi carrera", href: "/mi-carrera", icon: TrendingUp },
       { label: "Desempeno", href: "/desempeno", icon: LineChart },
     ],

@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Shield,
   Flag,
+  Target,
 } from "lucide-react";
 import { EducanetLogo } from "@/components/shared/EducanetLogo";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ const secciones = [
     items: [
       { label: "Cursos", href: "/admin/cursos", icon: BookOpen, check: puedeGestionarCursos },
       { label: "Badges", href: "/admin/badges", icon: Trophy, check: puedeGestionarBadges },
+      { label: "KPIs", href: "/admin/kpis", icon: Target, check: puedeGestionarCursos },
     ],
   },
   {

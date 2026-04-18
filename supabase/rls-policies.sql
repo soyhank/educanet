@@ -381,3 +381,85 @@ CREATE POLICY "cursos_relacionados_select" ON public."CursoRelacionado"
 CREATE POLICY "cursos_relacionados_admin" ON public."CursoRelacionado"
   FOR ALL TO authenticated
   USING (public.current_user_rol() = 'ADMIN');
+
+-- ============================================================================
+-- KPIs y Motor de gamificacion (Prompt 16A)
+-- ============================================================================
+
+ALTER TABLE public."PuestoKpiDefinicion" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."KpiAsignacion" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."KpiRegistroSemanal" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."KpiResultadoMensual" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."RangoMensual" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."EventoGamificacion" ENABLE ROW LEVEL SECURITY;
+
+-- PuestoKpiDefinicion: todos los autenticados leen, solo admin/rrhh modifica
+CREATE POLICY "kpi_def_select_all" ON public."PuestoKpiDefinicion"
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "kpi_def_admin" ON public."PuestoKpiDefinicion"
+  FOR ALL TO authenticated
+  USING (public.current_user_rol() IN ('ADMIN', 'RRHH'));
+
+-- KpiAsignacion: propio user lee los suyos + admin/rrhh
+CREATE POLICY "kpi_asig_select_propio_o_admin" ON public."KpiAsignacion"
+  FOR SELECT TO authenticated
+  USING (
+    auth.uid()::text = "userId"
+    OR public.current_user_rol() IN ('ADMIN', 'RRHH')
+  );
+
+CREATE POLICY "kpi_asig_write_admin" ON public."KpiAsignacion"
+  FOR ALL TO authenticated
+  USING (public.current_user_rol() IN ('ADMIN', 'RRHH'));
+
+-- KpiRegistroSemanal: propio user reporta sus valores + admin
+CREATE POLICY "kpi_reg_select_propio_o_admin" ON public."KpiRegistroSemanal"
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public."KpiAsignacion" a
+      WHERE a.id = "asignacionId"
+      AND (a."userId" = auth.uid()::text
+           OR public.current_user_rol() IN ('ADMIN', 'RRHH'))
+    )
+  );
+
+CREATE POLICY "kpi_reg_insert_propio_o_admin" ON public."KpiRegistroSemanal"
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid()::text = "reportadoPorId"
+    OR public.current_user_rol() IN ('ADMIN', 'RRHH')
+  );
+
+CREATE POLICY "kpi_reg_update_admin" ON public."KpiRegistroSemanal"
+  FOR UPDATE TO authenticated
+  USING (public.current_user_rol() IN ('ADMIN', 'RRHH'));
+
+-- KpiResultadoMensual: propio user lee + admin
+CREATE POLICY "kpi_res_select_propio_o_admin" ON public."KpiResultadoMensual"
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public."KpiAsignacion" a
+      WHERE a.id = "asignacionId"
+      AND (a."userId" = auth.uid()::text
+           OR public.current_user_rol() IN ('ADMIN', 'RRHH'))
+    )
+  );
+
+-- RangoMensual: propio user + admin
+CREATE POLICY "rango_select_propio_o_admin" ON public."RangoMensual"
+  FOR SELECT TO authenticated
+  USING (
+    auth.uid()::text = "userId"
+    OR public.current_user_rol() IN ('ADMIN', 'RRHH')
+  );
+
+-- EventoGamificacion: propio user lee su historial + admin
+CREATE POLICY "evento_select_propio_o_admin" ON public."EventoGamificacion"
+  FOR SELECT TO authenticated
+  USING (
+    auth.uid()::text = "userId"
+    OR public.current_user_rol() IN ('ADMIN', 'RRHH')
+  );

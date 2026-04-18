@@ -55,6 +55,47 @@ enum EstadoReporte {
   DESESTIMADO
 }
 
+enum TipoMetaKpi {
+  ABSOLUTA
+  RELATIVA_BASELINE
+  BINARIA
+}
+
+enum TipoRango {
+  BRONCE
+  PLATA
+  ORO
+  DIAMANTE
+}
+
+enum TipoEventoGamificacion {
+  LECCION_COMPLETADA
+  CURSO_COMPLETADO
+  QUIZ_APROBADO
+  QUIZ_PERFECTO
+  RACHA_INCREMENTADA
+  BADGE_OBTENIDO
+  SUBIDA_NIVEL
+  LIKE_RECIBIDO
+  KPI_MES_CUMPLIDO
+  KPIS_MES_TOTAL
+  COMPROMISO_CUMPLIDO
+  RECONOCIMIENTO_RECIBIDO
+  MISION_COMPLETADA
+  BONUS_EQUIPO
+  AJUSTE_ADMIN
+}
+
+enum FuenteXP {
+  APRENDIZAJE
+  KPIS
+  COMPROMISOS
+  RECONOCIMIENTOS
+  MISIONES
+  EQUIPO
+  SISTEMA
+}
+
 enum CriterioBadge {
   COMPLETAR_N_CURSOS
   RACHA_DIAS
@@ -124,6 +165,11 @@ model User {
   reportesHechos    ReporteComentario[] @relation("Reportes")
   reportesResueltos ReporteComentario[] @relation("ResolucionReportes")
 
+  kpiAsignaciones     KpiAsignacion[]
+  kpiRegistros        KpiRegistroSemanal[]
+  rangosMensuales     RangoMensual[]
+  eventosGamificacion EventoGamificacion[]
+
   @@index([email])
   @@index([areaId])
   @@index([puestoId])
@@ -149,10 +195,11 @@ model Puesto {
   descripcion String?
   orden       Int     @default(0)
 
-  area         Area          @relation(fields: [areaId], references: [id], onDelete: Restrict)
-  users        User[]
-  rutasOrigen  RutaCarrera[] @relation("PuestoOrigen")
-  rutasDestino RutaCarrera[] @relation("PuestoDestino")
+  area            Area                  @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  users           User[]
+  rutasOrigen     RutaCarrera[]         @relation("PuestoOrigen")
+  rutasDestino    RutaCarrera[]         @relation("PuestoDestino")
+  kpiDefiniciones PuestoKpiDefinicion[]
 
   @@index([areaId])
 }
@@ -513,4 +560,122 @@ model CursoRelacionado {
 
   @@id([cursoOrigenId, cursoDestinoId])
   @@index([cursoOrigenId, orden])
+}
+
+model PuestoKpiDefinicion {
+  id                   String      @id @default(cuid())
+  puestoId             String
+  codigo               String
+  nombre               String
+  descripcion          String      @db.Text
+  unidad               String
+  peso                 Int
+  tipoMeta             TipoMetaKpi
+  valorObjetivoDefault Float?
+  permiteSupera        Boolean     @default(true)
+  bonusPorcentaje      Int         @default(15)
+  activa               Boolean     @default(true)
+  orden                Int         @default(0)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  puesto       Puesto          @relation(fields: [puestoId], references: [id], onDelete: Cascade)
+  asignaciones KpiAsignacion[]
+
+  @@unique([puestoId, codigo])
+  @@index([puestoId])
+}
+
+model KpiAsignacion {
+  id            String   @id @default(cuid())
+  userId        String
+  definicionId  String
+  periodoMes    Int
+  periodoAnio   Int
+  valorBaseline Float?
+  valorObjetivo Float
+  notasInternas String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  definicion   PuestoKpiDefinicion  @relation(fields: [definicionId], references: [id], onDelete: Restrict)
+  registros    KpiRegistroSemanal[]
+  resultadoMes KpiResultadoMensual?
+
+  @@unique([userId, definicionId, periodoMes, periodoAnio])
+  @@index([userId, periodoMes, periodoAnio])
+}
+
+model KpiRegistroSemanal {
+  id             String   @id @default(cuid())
+  asignacionId   String
+  semanaDelAnio  Int
+  anio           Int
+  valor          Float
+  comentario     String?  @db.Text
+  reportadoPorId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  asignacion   KpiAsignacion @relation(fields: [asignacionId], references: [id], onDelete: Cascade)
+  reportadoPor User          @relation(fields: [reportadoPorId], references: [id])
+
+  @@unique([asignacionId, semanaDelAnio, anio])
+  @@index([asignacionId])
+}
+
+model KpiResultadoMensual {
+  id                     String   @id @default(cuid())
+  asignacionId           String   @unique
+  valorConsolidado       Float
+  porcentajeCumplimiento Float
+  superoMeta             Boolean  @default(false)
+  puntosOtorgados        Int
+  incluyeBonus           Boolean  @default(false)
+  calculadoEn            DateTime @default(now())
+
+  asignacion KpiAsignacion @relation(fields: [asignacionId], references: [id], onDelete: Cascade)
+}
+
+model RangoMensual {
+  id                    String    @id @default(cuid())
+  userId                String
+  periodoMes            Int
+  periodoAnio           Int
+  puntosTotales         Int
+  puntosKpis            Int       @default(0)
+  puntosCursos          Int       @default(0)
+  puntosCompromisos     Int       @default(0)
+  puntosReconocimientos Int       @default(0)
+  puntosMisiones        Int       @default(0)
+  cumplimientoKpis      Float     @default(0)
+  multiplicadorAplicado Boolean   @default(false)
+  rango                 TipoRango
+  calculadoEn           DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, periodoMes, periodoAnio])
+  @@index([userId, periodoAnio, periodoMes])
+}
+
+model EventoGamificacion {
+  id            String                 @id @default(cuid())
+  userId        String
+  tipo          TipoEventoGamificacion
+  fuente        FuenteXP
+  cantidad      Int
+  cantidadBruta Int
+  metadatos     Json?
+  referenciaId  String?
+  mesPeriodo    Int?
+  anioPeriodo   Int?
+  createdAt     DateTime               @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, anioPeriodo, mesPeriodo])
+  @@index([tipo])
+  @@index([fuente])
 }

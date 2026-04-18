@@ -17,7 +17,8 @@
     "db:seed-post-auth": "tsx prisma/seed-post-auth.ts",
     "db:seed-comentarios": "tsx prisma/seed-comentarios.ts",
     "db:seed-planeamiento": "tsx prisma/seed-curso-planeamiento.ts",
-    "db:seed-cx": "tsx prisma/seed-curso-cx.ts"
+    "db:seed-cx": "tsx prisma/seed-curso-cx.ts",
+    "db:seed-piloto": "tsx prisma/seed-piloto-marketing.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
