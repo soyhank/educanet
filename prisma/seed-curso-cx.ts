@@ -1608,7 +1608,7 @@ async function main() {
               slug: l.slug,
               titulo: l.titulo,
               descripcion: l.descripcion,
-              tipo: "LECTURA" as const,
+              tipo: "VIDEO" as const,
               contenidoMarkdown: l.contenido,
               duracionSegundos: l.minutos * 60,
               orden: li + 1,
