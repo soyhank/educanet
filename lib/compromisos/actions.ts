@@ -7,6 +7,7 @@ import { requireAuth, requireRole } from "@/lib/auth";
 import { procesarEvento } from "@/lib/gamificacion/motor";
 import { getSemanaISO, getAnio } from "@/lib/gamificacion/periodo";
 import { obtenerJefeUser } from "./jerarquia";
+import { PUNTOS_COMPROMISO } from "./constantes";
 
 type Result<T = undefined> =
   | { success: true; data?: T }
@@ -17,13 +18,6 @@ const compromisoSchema = z.object({
   descripcion: z.string().max(500).optional(),
   fechaLimite: z.date(),
 });
-
-export const PUNTOS_COMPROMISO = {
-  A_TIEMPO_VALIDADO: 25,
-  A_TIEMPO_AUTO: 20,
-  CON_RETRASO: 10,
-  NO_CUMPLIDO: 0,
-} as const;
 
 export async function crearCompromiso(input: {
   titulo: string;

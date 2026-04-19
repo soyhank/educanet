@@ -1,0 +1,6 @@
+export const PUNTOS_COMPROMISO = {
+  A_TIEMPO_VALIDADO: 25,
+  A_TIEMPO_AUTO: 20,
+  CON_RETRASO: 10,
+  NO_CUMPLIDO: 0,
+} as const;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PUNTOS_COMPROMISO } from "@/lib/compromisos/actions";
+import { PUNTOS_COMPROMISO } from "@/lib/compromisos/constantes";
 
 describe("PUNTOS_COMPROMISO", () => {
   it("a tiempo validado = 25", () => {
