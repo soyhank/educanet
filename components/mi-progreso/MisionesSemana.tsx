@@ -1,8 +1,9 @@
 import { Calendar } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { getSemanaISO, getAnio } from "@/lib/gamificacion/periodo";
+import { getSemanaISO } from "@/lib/gamificacion/periodo";
 import { MisionCard } from "@/components/misiones/MisionCard";
 import { regenerarMisionesSiNoExisten } from "@/lib/misiones/generador";
+import { MotionItem } from "@/components/shared/MotionGrid";
 
 export async function MisionesSemana({ userId }: { userId: string }) {
   const { semana, anio } = getSemanaISO(new Date());
@@ -38,19 +39,20 @@ export async function MisionesSemana({ userId }: { userId: string }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {misiones.map((m) => (
-          <MisionCard
-            key={m.id}
-            id={m.id}
-            titulo={m.titulo}
-            descripcion={m.descripcion}
-            tipo={m.tipo}
-            estado={m.estado}
-            puntosRecompensa={m.puntosRecompensa}
-            metaValor={m.metaValor}
-            progresoActual={m.progresoActual}
-            cursoSlug={m.curso?.slug}
-          />
+        {misiones.map((m, i) => (
+          <MotionItem key={m.id} index={i}>
+            <MisionCard
+              id={m.id}
+              titulo={m.titulo}
+              descripcion={m.descripcion}
+              tipo={m.tipo}
+              estado={m.estado}
+              puntosRecompensa={m.puntosRecompensa}
+              metaValor={m.metaValor}
+              progresoActual={m.progresoActual}
+              cursoSlug={m.curso?.slug}
+            />
+          </MotionItem>
         ))}
       </div>
     </section>

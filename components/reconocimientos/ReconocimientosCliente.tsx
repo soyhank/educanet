@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModalNuevaNominacion } from "./ModalNuevaNominacion";
 import { TarjetaReconocimiento } from "./TarjetaReconocimiento";
+import { MotionItem } from "@/components/shared/MotionGrid";
 
 type RecItem = {
   id: string;
@@ -82,8 +83,10 @@ export function ReconocimientosCliente({
             )
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              {feed.map((r) => (
-                <TarjetaReconocimiento key={r.id} {...r} />
+              {feed.map((r, i) => (
+                <MotionItem key={r.id} index={i} hover>
+                  <TarjetaReconocimiento {...r} />
+                </MotionItem>
               ))}
             </div>
           )}
@@ -96,8 +99,10 @@ export function ReconocimientosCliente({
             )
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              {recibidos.map((r) => (
-                <TarjetaReconocimiento key={r.id} {...r} />
+              {recibidos.map((r, i) => (
+                <MotionItem key={r.id} index={i} hover>
+                  <TarjetaReconocimiento {...r} />
+                </MotionItem>
               ))}
             </div>
           )}
@@ -110,8 +115,10 @@ export function ReconocimientosCliente({
             )
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              {dados.map((r) => (
-                <TarjetaReconocimiento key={r.id} {...r} />
+              {dados.map((r, i) => (
+                <MotionItem key={r.id} index={i} hover>
+                  <TarjetaReconocimiento {...r} />
+                </MotionItem>
               ))}
             </div>
           )}

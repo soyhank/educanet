@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -16,27 +17,34 @@ export async function getSession() {
 /**
  * Returns the current authenticated user with puesto and area, or null.
  * Reads from Supabase Auth then enriches with Prisma data.
+ *
+ * Envuelto en React.cache() para deduplicar por request: layout,
+ * page y sidebar consultan el user una sola vez (antes eran 3 DB hits).
  */
-export async function getCurrentUser(): Promise<UserConRelaciones | null> {
-  const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+export const getCurrentUser = cache(
+  async (): Promise<UserConRelaciones | null> => {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
 
-  if (!authUser) return null;
+    if (!authUser) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: authUser.id },
-    include: userConRelacionesInclude,
-  });
+    const user = await prisma.user.findUnique({
+      where: { id: authUser.id },
+      include: userConRelacionesInclude,
+    });
 
-  if (!user) {
-    console.warn(
-      `[auth] Supabase user ${authUser.id} exists but no matching User record in Prisma`
-    );
-    return null;
+    if (!user) {
+      console.warn(
+        `[auth] Supabase user ${authUser.id} exists but no matching User record in Prisma`
+      );
+      return null;
+    }
+
+    return user;
   }
-
-  return user;
-}
+);
 
 /**
  * Requires authentication. Redirects to /login if not authenticated.

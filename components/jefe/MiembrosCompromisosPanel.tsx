@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { UserPlus, CheckCircle2, Clock, Lightbulb } from "lucide-react";
+import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,10 +64,17 @@ export function MiembrosCompromisosPanel({
         Compromisos de la semana por miembro
       </h3>
       <div className="grid gap-3 sm:grid-cols-2">
-        {miembros.map((m) => {
+        {miembros.map((m, i) => {
           const iniciales = `${m.user.nombre[0] ?? ""}${m.user.apellido[0] ?? ""}`.toUpperCase();
           return (
-            <div key={m.user.id} className="rounded-xl border bg-card p-4">
+            <motion.div
+              key={m.user.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04, duration: 0.25, ease: "easeOut" }}
+              whileHover={{ y: -2 }}
+              className="rounded-xl border bg-card p-4 transition-shadow hover:shadow-sm"
+            >
               <div className="mb-3 flex items-start gap-3">
                 <Avatar className="h-10 w-10">
                   {m.user.avatarUrl && <AvatarImage src={m.user.avatarUrl} alt="" />}
@@ -145,7 +153,7 @@ export function MiembrosCompromisosPanel({
                   })}
                 </div>
               )}
-            </div>
+            </motion.div>
           );
         })}
       </div>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { requireAuth } from "@/lib/auth";
 import { mesActual } from "@/lib/gamificacion/periodo";
 import { obtenerProgresoMes } from "@/lib/kpis/mi-progreso-queries";
@@ -11,6 +12,7 @@ import { MisionesSemana } from "@/components/mi-progreso/MisionesSemana";
 import { CardEncuestaSemanal } from "@/components/encuestas/CardEncuestaSemanal";
 import { SeccionBonusEquipo } from "@/components/piloto/SeccionBonusEquipo";
 import { CompromisosSemanaCard } from "@/components/mi-progreso/CompromisosSemanaCard";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const MESES_ES = [
   "enero",
@@ -29,10 +31,40 @@ const MESES_ES = [
 
 export const metadata = { title: "Mi progreso" };
 
+async function BreakdownYCumplimiento({
+  userId,
+  mes,
+  anio,
+}: {
+  userId: string;
+  mes: number;
+  anio: number;
+}) {
+  const progreso = await obtenerProgresoMes(userId, mes, anio);
+  return (
+    <>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <BreakdownXPFuentes
+          fuentes={progreso.fuentes}
+          total={progreso.puntosTotales}
+          multiplicadorAplicado={progreso.multiplicadorAplicado}
+        />
+        <CumplimientoKPIsResumen
+          cumplimientos={progreso.cumplimientos}
+          cumplimientoGlobal={progreso.cumplimientoKpis}
+          hayDatosSuficientes={progreso.hayDatosSuficientesKpis}
+        />
+      </div>
+      <AccionesSugeridas progreso={progreso} />
+    </>
+  );
+}
+
 export default async function MiProgresoPage() {
   const user = await requireAuth();
   const { mes, anio } = mesActual();
 
+  // Criticos para el header: rango + encuesta + nombres de KPIs
   const [progreso, encuestaCheck, kpisUser] = await Promise.all([
     obtenerProgresoMes(user.id, mes, anio),
     puedeResponderEncuesta(user.id),
@@ -73,28 +105,39 @@ export default async function MiProgresoPage() {
         diasRestantes={progreso.diasRestantes}
       />
 
+      {/* Cards secundarias: streaming para no bloquear el rango */}
       {user.areaId && (
-        <SeccionBonusEquipo areaId={user.areaId} mes={mes} anio={anio} />
+        <Suspense fallback={<Skeleton className="h-28 rounded-xl" />}>
+          <SeccionBonusEquipo areaId={user.areaId} mes={mes} anio={anio} />
+        </Suspense>
       )}
 
-      <CompromisosSemanaCard userId={user.id} />
+      <Suspense fallback={<Skeleton className="h-32 rounded-xl" />}>
+        <CompromisosSemanaCard userId={user.id} />
+      </Suspense>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <BreakdownXPFuentes
-          fuentes={progreso.fuentes}
-          total={progreso.puntosTotales}
-          multiplicadorAplicado={progreso.multiplicadorAplicado}
-        />
-        <CumplimientoKPIsResumen
-          cumplimientos={progreso.cumplimientos}
-          cumplimientoGlobal={progreso.cumplimientoKpis}
-          hayDatosSuficientes={progreso.hayDatosSuficientesKpis}
-        />
-      </div>
+      <Suspense
+        fallback={
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Skeleton className="h-64 rounded-xl" />
+            <Skeleton className="h-64 rounded-xl" />
+          </div>
+        }
+      >
+        <BreakdownYCumplimiento userId={user.id} mes={mes} anio={anio} />
+      </Suspense>
 
-      <MisionesSemana userId={user.id} />
-
-      <AccionesSugeridas progreso={progreso} />
+      <Suspense
+        fallback={
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-48 rounded-xl" />
+            ))}
+          </div>
+        }
+      >
+        <MisionesSemana userId={user.id} />
+      </Suspense>
     </div>
   );
 }
