@@ -3,13 +3,19 @@ import { requireAuth } from "@/lib/auth";
 import { mesActual } from "@/lib/gamificacion/periodo";
 import { obtenerPilotoContextoPorArea } from "@/lib/piloto/queries";
 import { obtenerDashboardJefe, obtenerAdopcionEquipo } from "@/lib/jefe/queries";
-import { obtenerCompromisosPendientesValidacion } from "@/lib/compromisos/queries";
+import {
+  obtenerCompromisosPendientesValidacion,
+  obtenerPropuestasPorAprobar,
+  obtenerCompromisosDelEquipoPorMiembro,
+} from "@/lib/compromisos/queries";
 import { AvisoAnonimizado } from "@/components/jefe/AvisoAnonimizado";
 import { StatsAgregadasEquipo } from "@/components/jefe/StatsAgregadasEquipo";
 import { DistribucionRangos } from "@/components/jefe/DistribucionRangos";
 import { BreakdownFuentesEquipo } from "@/components/jefe/BreakdownFuentesEquipo";
 import { MiembrosDetalle } from "@/components/jefe/MiembrosDetalle";
+import { MiembrosCompromisosPanel } from "@/components/jefe/MiembrosCompromisosPanel";
 import { PanelValidacionJefe } from "@/components/compromisos/PanelValidacionJefe";
+import { PanelPropuestasJefe } from "@/components/compromisos/PanelPropuestasJefe";
 
 export const metadata = { title: "Mi equipo" };
 
@@ -21,11 +27,20 @@ export default async function MiEquipoPage() {
   if (!user.areaId) redirect("/mi-progreso");
 
   const { mes, anio } = mesActual();
-  const [dashboard, adopcion, ctxPiloto, pendientes] = await Promise.all([
+  const [
+    dashboard,
+    adopcion,
+    ctxPiloto,
+    pendientesValidar,
+    propuestas,
+    miembrosCompromisos,
+  ] = await Promise.all([
     obtenerDashboardJefe({ jefeId: user.id, mes, anio }),
     obtenerAdopcionEquipo({ areaId: user.areaId, mes, anio }),
     obtenerPilotoContextoPorArea(user.areaId),
     obtenerCompromisosPendientesValidacion(user.areaId),
+    obtenerPropuestasPorAprobar(user.areaId),
+    obtenerCompromisosDelEquipoPorMiembro(user.areaId, user.id),
   ]);
 
   return (
@@ -42,6 +57,13 @@ export default async function MiEquipoPage() {
           fechaFin={ctxPiloto.config?.fechaFinAnonimizacion ?? null}
         />
       )}
+
+      {propuestas.length > 0 && <PanelPropuestasJefe propuestas={propuestas} />}
+      {pendientesValidar.length > 0 && (
+        <PanelValidacionJefe pendientes={pendientesValidar} />
+      )}
+
+      <MiembrosCompromisosPanel miembros={miembrosCompromisos} />
 
       <StatsAgregadasEquipo
         totalMiembros={dashboard.totalMiembros}
@@ -82,10 +104,6 @@ export default async function MiEquipoPage() {
       </section>
 
       <MiembrosDetalle miembros={dashboard.miembrosDetalle} />
-
-      {pendientes.length > 0 && (
-        <PanelValidacionJefe pendientes={pendientes} />
-      )}
     </div>
   );
 }

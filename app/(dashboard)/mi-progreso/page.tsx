@@ -10,6 +10,7 @@ import { AccionesSugeridas } from "@/components/mi-progreso/AccionesSugeridas";
 import { MisionesSemana } from "@/components/mi-progreso/MisionesSemana";
 import { CardEncuestaSemanal } from "@/components/encuestas/CardEncuestaSemanal";
 import { SeccionBonusEquipo } from "@/components/piloto/SeccionBonusEquipo";
+import { CompromisosSemanaCard } from "@/components/mi-progreso/CompromisosSemanaCard";
 
 const MESES_ES = [
   "enero",
@@ -75,6 +76,8 @@ export default async function MiProgresoPage() {
       {user.areaId && (
         <SeccionBonusEquipo areaId={user.areaId} mes={mes} anio={anio} />
       )}
+
+      <CompromisosSemanaCard userId={user.id} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <BreakdownXPFuentes

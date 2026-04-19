@@ -119,6 +119,7 @@ enum EstadoMision {
 }
 
 enum EstadoCompromiso {
+  PROPUESTO
   PENDIENTE
   CUMPLIDO_AUTO
   CUMPLIDO
@@ -204,6 +205,7 @@ model User {
   reconocimientosRecibidos Reconocimiento[]  @relation("ReconocimientosRecibidos")
   misiones                 Mision[]
   compromisos              Compromiso[]
+  compromisosAsignados     Compromiso[]      @relation("CompromisosAsignados")
   validacionesCompromisos  Compromiso[]      @relation("ValidacionesCompromisos")
   encuestasSemanal         EncuestaSemanal[]
 
@@ -780,6 +782,7 @@ model Mision {
 model Compromiso {
   id                    String           @id @default(cuid())
   userId                String
+  asignadoPorId         String?
   titulo                String
   descripcion           String?          @db.Text
   fechaLimite           DateTime
@@ -796,6 +799,7 @@ model Compromiso {
   updatedAt             DateTime         @updatedAt
 
   user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asignadoPor User? @relation("CompromisosAsignados", fields: [asignadoPorId], references: [id])
   validadoPor User? @relation("ValidacionesCompromisos", fields: [validadoPorId], references: [id])
 
   @@index([userId, estado])

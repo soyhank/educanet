@@ -2,20 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { CheckCircle2 } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { crearCompromiso } from "@/lib/compromisos/actions";
+import { proponerCompromiso } from "@/lib/compromisos/actions";
 
 function fechaDefault(): string {
   const d = new Date();
@@ -27,7 +27,7 @@ function hoy(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function ModalNuevoCompromiso({
+export function ModalProponerCompromiso({
   abierto,
   onCerrar,
 }: {
@@ -51,13 +51,13 @@ export function ModalNuevoCompromiso({
       return;
     }
     startTransition(async () => {
-      const res = await crearCompromiso({
+      const res = await proponerCompromiso({
         titulo: titulo.trim(),
         descripcion: descripcion.trim() || undefined,
         fechaLimite: new Date(fecha).toISOString(),
       });
       if (res.success) {
-        toast.success("Compromiso creado");
+        toast.success("Propuesta enviada a tu jefe");
         reset();
         onCerrar();
       } else {
@@ -71,12 +71,12 @@ export function ModalNuevoCompromiso({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-primary" />
-            Nuevo compromiso
+            <Lightbulb className="h-4 w-4 text-primary" />
+            Proponer compromiso
           </DialogTitle>
           <DialogDescription>
-            Declara que vas a entregar y cuando. Cuando lo cumplas, te damos
-            puntos.
+            Tu jefe revisara la propuesta y la aprobara o rechazara. Recibes
+            puntos solo cuando la cumplas y sea validada.
           </DialogDescription>
         </DialogHeader>
 
@@ -89,7 +89,7 @@ export function ModalNuevoCompromiso({
               id="titulo"
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Ej. Entregar draft de newsletter del viernes"
+              placeholder="Ej. Entregar draft del newsletter viernes"
               maxLength={200}
               className="mt-1"
             />
@@ -134,7 +134,7 @@ export function ModalNuevoCompromiso({
             Cancelar
           </Button>
           <Button onClick={guardar} disabled={isPending}>
-            {isPending ? "Guardando..." : "Crear compromiso"}
+            {isPending ? "Enviando..." : "Enviar propuesta"}
           </Button>
         </DialogFooter>
       </DialogContent>
