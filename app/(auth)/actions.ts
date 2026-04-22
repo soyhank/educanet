@@ -8,6 +8,8 @@ import { checkRateLimit, loginLimiter, registerLimiter, resetPasswordLimiter, ge
 
 type ActionResult = {
   error?: string;
+  fieldErrors?: Record<string, string>;
+  values?: Record<string, string>;
   success?: boolean;
   message?: string;
 };
@@ -55,11 +57,6 @@ export async function registerAction(
   const headersList = await headers();
   const ip = getClientIp(headersList);
 
-  const rl = checkRateLimit(ip, registerLimiter);
-  if (!rl.success) {
-    return { error: "Demasiados intentos. Espera un momento." };
-  }
-
   const raw = {
     nombre: formData.get("nombre"),
     apellido: formData.get("apellido"),
@@ -71,9 +68,32 @@ export async function registerAction(
     acepteTerminos: formData.get("acepteTerminos") === "on" ? true : undefined,
   };
 
+  const values: Record<string, string> = {
+    nombre: (raw.nombre as string) ?? "",
+    apellido: (raw.apellido as string) ?? "",
+    email: (raw.email as string) ?? "",
+    areaId: (raw.areaId as string) ?? "",
+    puestoId: (raw.puestoId as string) ?? "",
+    acepteTerminos: raw.acepteTerminos ? "on" : "",
+  };
+
+  const rl = checkRateLimit(ip, registerLimiter);
+  if (!rl.success) {
+    return { error: "Demasiados intentos. Espera un momento.", values };
+  }
+
   const parsed = registerSchema.safeParse(raw);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0].message };
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0] as string;
+      if (key && !fieldErrors[key]) fieldErrors[key] = issue.message;
+    }
+    return {
+      error: parsed.error.issues[0].message,
+      fieldErrors,
+      values,
+    };
   }
 
   const supabase = await createClient();
@@ -93,9 +113,13 @@ export async function registerAction(
 
   if (error) {
     if (error.message.includes("already registered")) {
-      return { error: "Este correo ya esta registrado" };
+      return {
+        error: "Este correo ya esta registrado",
+        fieldErrors: { email: "Este correo ya esta registrado" },
+        values,
+      };
     }
-    return { error: "Error al crear la cuenta. Intenta de nuevo." };
+    return { error: "Error al crear la cuenta. Intenta de nuevo.", values };
   }
 
   if (!data.session) {
@@ -107,6 +131,7 @@ export async function registerAction(
       return {
         error:
           "Cuenta creada. Revisa tu correo para confirmar tu direccion antes de iniciar sesion.",
+        values,
       };
     }
   }

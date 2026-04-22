@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -34,6 +34,23 @@ type AreaConPuestos = {
   puestos: { id: string; nombre: string; nivel: number }[];
 };
 
+function Requirement({ ok, children }: { ok: boolean; children: React.ReactNode }) {
+  return (
+    <li
+      className={`flex items-center gap-1.5 text-xs transition-colors ${
+        ok ? "text-success" : "text-muted-foreground"
+      }`}
+    >
+      {ok ? (
+        <Check className="h-3 w-3 shrink-0" />
+      ) : (
+        <X className="h-3 w-3 shrink-0 opacity-60" />
+      )}
+      <span>{children}</span>
+    </li>
+  );
+}
+
 export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
   const [state, formAction, isPending] = useActionState(registerAction, {});
   const [showPassword, setShowPassword] = useState(false);
@@ -42,13 +59,27 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
   const [puestoId, setPuestoId] = useState<string>("");
   const strength = passwordStrength(password);
 
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+
   const puestosDelArea = useMemo(
     () => areas.find((a) => a.id === areaId)?.puestos ?? [],
     [areas, areaId]
   );
 
+  const fieldErrors = state.fieldErrors ?? {};
+  const values = state.values ?? {};
+
   useEffect(() => {
-    if (state.error) toast.error(state.error);
+    if (values.areaId) setAreaId(values.areaId);
+    if (values.puestoId) setPuestoId(values.puestoId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  useEffect(() => {
+    if (state.error && !state.fieldErrors) toast.error(state.error);
   }, [state]);
 
   return (
@@ -61,7 +92,17 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
       >
         <div className="space-y-2">
           <Label htmlFor="nombre">Nombre</Label>
-          <Input id="nombre" name="nombre" required autoComplete="given-name" />
+          <Input
+            id="nombre"
+            name="nombre"
+            required
+            autoComplete="given-name"
+            defaultValue={values.nombre ?? ""}
+            aria-invalid={!!fieldErrors.nombre}
+          />
+          {fieldErrors.nombre && (
+            <p className="text-xs text-destructive">{fieldErrors.nombre}</p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="apellido">Apellido</Label>
@@ -70,7 +111,12 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
             name="apellido"
             required
             autoComplete="family-name"
+            defaultValue={values.apellido ?? ""}
+            aria-invalid={!!fieldErrors.apellido}
           />
+          {fieldErrors.apellido && (
+            <p className="text-xs text-destructive">{fieldErrors.apellido}</p>
+          )}
         </div>
       </motion.div>
 
@@ -88,7 +134,12 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
           placeholder="tu@empresa.com"
           autoComplete="email"
           required
+          defaultValue={values.email ?? ""}
+          aria-invalid={!!fieldErrors.email}
         />
+        {fieldErrors.email && (
+          <p className="text-xs text-destructive">{fieldErrors.email}</p>
+        )}
       </motion.div>
 
       <motion.div
@@ -107,7 +158,11 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
               setPuestoId("");
             }}
           >
-            <SelectTrigger id="areaSelect" className="w-full">
+            <SelectTrigger
+              id="areaSelect"
+              className="w-full"
+              aria-invalid={!!fieldErrors.areaId}
+            >
               <SelectValue placeholder="Selecciona tu area" />
             </SelectTrigger>
             <SelectContent>
@@ -118,6 +173,9 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
               ))}
             </SelectContent>
           </Select>
+          {fieldErrors.areaId && (
+            <p className="text-xs text-destructive">{fieldErrors.areaId}</p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -128,7 +186,11 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
             onValueChange={(v) => setPuestoId(v ?? "")}
             disabled={!areaId}
           >
-            <SelectTrigger id="puestoSelect" className="w-full">
+            <SelectTrigger
+              id="puestoSelect"
+              className="w-full"
+              aria-invalid={!!fieldErrors.puestoId}
+            >
               <SelectValue
                 placeholder={areaId ? "Selecciona" : "Elige un area"}
               />
@@ -141,6 +203,9 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
               ))}
             </SelectContent>
           </Select>
+          {fieldErrors.puestoId && (
+            <p className="text-xs text-destructive">{fieldErrors.puestoId}</p>
+          )}
         </div>
       </motion.div>
 
@@ -159,6 +224,8 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
             autoComplete="new-password"
             required
             onChange={(e) => setPassword(e.target.value)}
+            aria-invalid={!!fieldErrors.password}
+            aria-describedby="password-requirements"
           />
           <button
             type="button"
@@ -174,8 +241,18 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
           </button>
         </div>
 
+        <ul
+          id="password-requirements"
+          className="grid grid-cols-2 gap-x-3 gap-y-1 pt-1"
+        >
+          <Requirement ok={hasMinLength}>Minimo 8 caracteres</Requirement>
+          <Requirement ok={hasUppercase}>Una mayuscula (A-Z)</Requirement>
+          <Requirement ok={hasLowercase}>Una minuscula (a-z)</Requirement>
+          <Requirement ok={hasNumber}>Un numero (0-9)</Requirement>
+        </ul>
+
         {password.length > 0 && (
-          <div className="space-y-1">
+          <div className="space-y-1 pt-1">
             <div className="flex gap-1">
               {[1, 2, 3, 4].map((level) => (
                 <div
@@ -190,6 +267,10 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
               {strengthLabels[strength]}
             </p>
           </div>
+        )}
+
+        {fieldErrors.password && (
+          <p className="text-xs text-destructive">{fieldErrors.password}</p>
         )}
       </motion.div>
 
@@ -206,7 +287,13 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
           type="password"
           autoComplete="new-password"
           required
+          aria-invalid={!!fieldErrors.confirmPassword}
         />
+        {fieldErrors.confirmPassword && (
+          <p className="text-xs text-destructive">
+            {fieldErrors.confirmPassword}
+          </p>
+        )}
       </motion.div>
 
       <motion.div
@@ -221,6 +308,7 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
           name="acepteTerminos"
           className="mt-1 h-4 w-4 rounded border-border"
           required
+          defaultChecked={values.acepteTerminos === "on"}
         />
         <Label htmlFor="acepteTerminos" className="text-sm font-normal leading-5">
           Acepto los{" "}
@@ -229,8 +317,13 @@ export function RegisterForm({ areas }: { areas: AreaConPuestos[] }) {
           </Link>
         </Label>
       </motion.div>
+      {fieldErrors.acepteTerminos && (
+        <p className="-mt-2 text-xs text-destructive">
+          {fieldErrors.acepteTerminos}
+        </p>
+      )}
 
-      {state.error && (
+      {state.error && !state.fieldErrors && (
         <p className="text-sm text-destructive">{state.error}</p>
       )}
 
