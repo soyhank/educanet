@@ -20,7 +20,8 @@
     "db:seed-cx": "tsx prisma/seed-curso-cx.ts",
     "db:seed-piloto": "tsx prisma/seed-piloto-marketing.ts",
     "db:seed-piloto-real": "tsx prisma/seed-piloto-real.ts",
-    "db:seed-hitos": "tsx prisma/seed-hitos-kpi.ts"
+    "db:seed-hitos": "tsx prisma/seed-hitos-kpi.ts",
+    "kpi:generar": "tsx prisma/kpi-generar-instancias.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
