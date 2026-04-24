@@ -317,7 +317,7 @@ export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps)
                         descripcionOverride={overridesMap.get(item.id) ?? null}
                         obligatorio={item.obligatorio}
                         marcado={localMarcados.get(item.id) ?? false}
-                        disabled={isPending}
+                        disabled={false}
                         onToggle={(nuevo) => onToggleItem(item.id, nuevo)}
                         onEditarTexto={(nuevo) =>
                           editarChecklistItemTexto({

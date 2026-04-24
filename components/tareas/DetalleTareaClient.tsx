@@ -146,8 +146,6 @@ export function DetalleTareaClient({
       if (!res.success) {
         setLocalMarcados(prev => new Map(prev).set(itemId, !nuevoEstado));
         toast.error(res.error ?? "Error al guardar");
-      } else {
-        router.refresh();
       }
     });
   };
@@ -780,7 +778,7 @@ function ModalCompletar({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button className="w-full">
+          <Button className="w-full" disabled={!checklistListo}>
             <CheckCircle2 />
             Marcar completada
           </Button>
