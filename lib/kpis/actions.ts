@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { procesarEvento } from "@/lib/gamificacion/motor";
-import { getSemanaISO, getAnio } from "@/lib/gamificacion/periodo";
+import { getSemanaISO, getAnio, mesActual } from "@/lib/gamificacion/periodo";
 import {
   calcularCumplimientoKpis,
   consolidarRegistros,
@@ -260,6 +260,43 @@ export async function actualizarDefinicionKpi(
 ): Promise<Result> {
   await requireRole(["ADMIN", "RRHH"]);
   await prisma.puestoKpiDefinicion.update({ where: { id }, data });
+
+  // Re-aplicar nuevo objetivo al mes actual si cambió
+  if (data.valorObjetivoDefault != null) {
+    const { mes, anio } = mesActual();
+    await prisma.kpiAsignacion.updateMany({
+      where: { definicionId: id, periodoMes: mes, periodoAnio: anio },
+      data: { valorObjetivo: data.valorObjetivoDefault },
+    });
+  }
+
+  revalidatePath("/admin/kpis");
+  revalidatePath("/mi-equipo/kpis");
+  return { success: true };
+}
+
+export async function actualizarObjetivoRolMesAction(input: {
+  definicionId: string;
+  valorObjetivo: number;
+}): Promise<Result> {
+  const user = await requireAuth();
+  const esJefe = user.puesto?.nombre?.startsWith("Jefe") ?? false;
+  const esAdmin = user.rol === "ADMIN" || user.rol === "RRHH";
+  if (!esJefe && !esAdmin) return { success: false, error: "Sin permiso" };
+
+  const { mes, anio } = mesActual();
+
+  await prisma.puestoKpiDefinicion.update({
+    where: { id: input.definicionId },
+    data: { valorObjetivoDefault: input.valorObjetivo },
+  });
+
+  await prisma.kpiAsignacion.updateMany({
+    where: { definicionId: input.definicionId, periodoMes: mes, periodoAnio: anio },
+    data: { valorObjetivo: input.valorObjetivo },
+  });
+
+  revalidatePath("/mi-equipo/kpis");
   revalidatePath("/admin/kpis");
   return { success: true };
 }

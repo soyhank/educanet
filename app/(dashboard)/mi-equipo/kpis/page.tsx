@@ -7,6 +7,7 @@ import { KineticTitle } from "@/components/ui/primitives/KineticTitle";
 import { HaloBackground } from "@/components/ui/primitives/HaloBackground";
 import { CardPendienteValidacion } from "@/components/jefe/CardPendienteValidacion";
 import { CardKpiEvaluadoPorJefe } from "@/components/jefe/CardKpiEvaluadoPorJefe";
+import { EditorObjetivosRol } from "@/components/jefe/EditorObjetivosRol";
 
 export const metadata = { title: "Validación de KPIs" };
 
@@ -21,7 +22,7 @@ export default async function MiEquipoKpisPage() {
   const { mes, anio } = mesActual();
   const equipoIds = await obtenerEquipoIds(user.id);
 
-  const [pendientes, asignacionesPorJefe] = await Promise.all([
+  const [pendientes, asignacionesPorJefe, puestosConKpis] = await Promise.all([
     prisma.kpiRegistroSemanal.findMany({
       where: {
         asignacion: {
@@ -57,6 +58,23 @@ export default async function MiEquipoKpisPage() {
         },
         registros: { orderBy: { semanaDelAnio: "desc" }, take: 4 },
       },
+    }),
+    prisma.puesto.findMany({
+      where: { areaId: user.areaId },
+      include: {
+        kpiDefiniciones: {
+          where: { activa: true, frecuencia: null },
+          orderBy: { orden: "asc" },
+          select: {
+            id: true,
+            nombre: true,
+            unidad: true,
+            valorObjetivoDefault: true,
+            peso: true,
+          },
+        },
+      },
+      orderBy: { nombre: "asc" },
     }),
   ]);
 
@@ -115,6 +133,28 @@ export default async function MiEquipoKpisPage() {
           </div>
         </section>
       )}
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Objetivos del mes por rol</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Ajusta el objetivo de un KPI para todo el rol. Se aplica al mes actual de inmediato.
+          </p>
+        </div>
+        <EditorObjetivosRol
+          puestos={puestosConKpis.map((p) => ({
+            id: p.id,
+            nombre: p.nombre,
+            kpiDefiniciones: p.kpiDefiniciones.map((k) => ({
+              id: k.id,
+              nombre: k.nombre,
+              unidad: k.unidad ?? "%",
+              valorObjetivoDefault: k.valorObjetivoDefault,
+              peso: k.peso ?? 0,
+            })),
+          }))}
+        />
+      </section>
     </div>
   );
 }
