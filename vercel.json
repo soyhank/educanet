@@ -6,6 +6,7 @@
     { "path": "/api/cron/cierre-mes", "schedule": "0 8 1 * *" },
     { "path": "/api/cron/kpis-instancias", "schedule": "0 6 * * 1" },
     { "path": "/api/cron/kpis-autoreporte", "schedule": "0 6 * * 0" },
-    { "path": "/api/cron/kpis-recordatorios", "schedule": "0 9 * * *" }
+    { "path": "/api/cron/kpis-recordatorios", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/kpis-asignacion-mensual", "schedule": "0 6 1 * *" }
   ]
 }

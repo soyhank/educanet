@@ -986,6 +986,8 @@ enum CategoriaTarea {
   COORDINACION_GENERAL
   DISENO
   DESARROLLO_WEB
+  CONTENIDO
+  CONTENIDO_CURSOS
 }
 
 enum TipoTrabajoTarea {

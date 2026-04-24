@@ -27,6 +27,7 @@ import {
   completarTarea,
   editarChecklistItemTexto,
   marcarChecklistItem,
+  marcarChecklistAdHocItem,
 } from "@/lib/tareas/actions";
 import { ChecklistItemRow } from "./ChecklistItemRow";
 import type { Prisma } from "@prisma/client";
@@ -76,6 +77,9 @@ export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps)
   const negocioInfo = infoNegocio(tarea.negocio);
   const { workflowInstancia: wf } = tarea;
 
+  type AdHocItem = { texto: string; marcado: boolean };
+  const isAdHoc = !tarea.catalogoTareaId;
+
   const items = useMemo(
     () =>
       tarea.catalogoTarea?.checklistItems
@@ -101,13 +105,22 @@ export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps)
     return m;
   }, [tarea.checklistMarcados]);
 
-  const totalItems = items.length;
-  const marcados = items.filter((i) => localMarcados.get(i.id)).length;
-  const obligatoriosRestantes = items.filter(
-    (i) => i.obligatorio && !localMarcados.get(i.id),
-  ).length;
+  const [localAdHocItems, setLocalAdHocItems] = useState<AdHocItem[]>(() =>
+    isAdHoc ? ((tarea.checklistAdHoc as AdHocItem[] | null) ?? []) : [],
+  );
+  useEffect(() => {
+    if (isAdHoc) setLocalAdHocItems((tarea.checklistAdHoc as AdHocItem[] | null) ?? []);
+  }, [tarea.checklistAdHoc, isAdHoc]);
+
+  const totalItems = isAdHoc ? localAdHocItems.length : items.length;
+  const marcados = isAdHoc
+    ? localAdHocItems.filter((i) => i.marcado).length
+    : items.filter((i) => localMarcados.get(i.id)).length;
+  const obligatoriosRestantes = isAdHoc
+    ? localAdHocItems.filter((i) => !i.marcado).length
+    : items.filter((i) => i.obligatorio && !localMarcados.get(i.id)).length;
   const puedeCompletar =
-    items.length > 0 &&
+    totalItems > 0 &&
     obligatoriosRestantes === 0 &&
     tarea.estado !== "COMPLETADA" &&
     tarea.estado !== "OMITIDA";
@@ -124,6 +137,22 @@ export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps)
     }).then((res) => {
       if (!res.success) {
         setLocalMarcados((prev) => new Map(prev).set(itemId, !nuevo));
+        toast.error(res.error ?? "Error al guardar");
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  const onToggleAdHocItem = (indice: number, nuevo: boolean) => {
+    setLocalAdHocItems((prev) =>
+      prev.map((item, i) => (i === indice ? { ...item, marcado: nuevo } : item)),
+    );
+    void marcarChecklistAdHocItem({ tareaId: tarea.id, indice, marcado: nuevo }).then((res) => {
+      if (!res.success) {
+        setLocalAdHocItems((prev) =>
+          prev.map((item, i) => (i === indice ? { ...item, marcado: !nuevo } : item)),
+        );
         toast.error(res.error ?? "Error al guardar");
       } else {
         router.refresh();
@@ -303,40 +332,62 @@ export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps)
             >
               <div className="space-y-2 rounded-md border border-border/40 bg-muted/20 p-2.5 mt-1">
                 <ul className="space-y-1.5">
-                  {items.map((item, idx) => (
-                    <motion.li
-                      key={item.id}
-                      initial={{ opacity: 0, x: -4 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.025 }}
-                    >
-                      <ChecklistItemRow
-                        itemPlantillaId={item.id}
-                        indice={idx + 1}
-                        descripcionOriginal={item.descripcion}
-                        descripcionOverride={overridesMap.get(item.id) ?? null}
-                        obligatorio={item.obligatorio}
-                        marcado={localMarcados.get(item.id) ?? false}
-                        disabled={false}
-                        onToggle={(nuevo) => onToggleItem(item.id, nuevo)}
-                        onEditarTexto={(nuevo) =>
-                          editarChecklistItemTexto({
-                            tareaId: tarea.id,
-                            itemPlantillaId: item.id,
-                            descripcion: nuevo,
-                          })
-                        }
-                        size="sm"
-                      />
-                    </motion.li>
-                  ))}
+                  {isAdHoc
+                    ? localAdHocItems.map((item, idx) => (
+                        <motion.li
+                          key={idx}
+                          initial={{ opacity: 0, x: -4 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.025 }}
+                        >
+                          <ChecklistItemRow
+                            itemPlantillaId={String(idx)}
+                            indice={idx + 1}
+                            descripcionOriginal={item.texto}
+                            descripcionOverride={null}
+                            obligatorio={true}
+                            marcado={item.marcado}
+                            disabled={false}
+                            onToggle={(nuevo) => onToggleAdHocItem(idx, nuevo)}
+                            onEditarTexto={async () => ({ success: true })}
+                            size="sm"
+                          />
+                        </motion.li>
+                      ))
+                    : items.map((item, idx) => (
+                        <motion.li
+                          key={item.id}
+                          initial={{ opacity: 0, x: -4 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.025 }}
+                        >
+                          <ChecklistItemRow
+                            itemPlantillaId={item.id}
+                            indice={idx + 1}
+                            descripcionOriginal={item.descripcion}
+                            descripcionOverride={overridesMap.get(item.id) ?? null}
+                            obligatorio={item.obligatorio}
+                            marcado={localMarcados.get(item.id) ?? false}
+                            disabled={false}
+                            onToggle={(nuevo) => onToggleItem(item.id, nuevo)}
+                            onEditarTexto={(nuevo) =>
+                              editarChecklistItemTexto({
+                                tareaId: tarea.id,
+                                itemPlantillaId: item.id,
+                                descripcion: nuevo,
+                              })
+                            }
+                            size="sm"
+                          />
+                        </motion.li>
+                      ))}
                 </ul>
 
                 {puedeCompletar && !hideCompleteButton && (
                   <motion.div
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: items.length * 0.025 }}
+                    transition={{ delay: totalItems * 0.025 }}
                   >
                     <Button
                       size="sm"

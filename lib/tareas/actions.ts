@@ -1060,3 +1060,11 @@ export async function cancelarWorkflow(workflowId: string): Promise<Result> {
     return { success: false, error: (e as Error).message };
   }
 }
+
+export async function validarCoberturaAction(params: {
+  plantillaId: string;
+  areaId: string;
+}) {
+  const { validarCoberturaWorkflow } = await import("./validacion-cobertura");
+  return validarCoberturaWorkflow(params);
+}

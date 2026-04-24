@@ -356,3 +356,146 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
     },
   ],
 };
+
+// ════════════════════════════════════════════════════════════════════════════
+// Prompt 20 — KPIs reales de Nadia (Content Manager) basados en workflow real
+// ════════════════════════════════════════════════════════════════════════════
+export const KPIS_CONTENT_MANAGER: DefinicionKpiSeed[] = [
+  {
+    codigo: "CUMPLIMIENTO_CALENDARIO_EDITORIAL",
+    nombre: "Cumplimiento del calendario editorial",
+    descripcion:
+      "Posts publicados vs planificados segun el calendario de contenido",
+    unidad: "%",
+    peso: 25,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 95,
+    bonusPorcentaje: 10,
+    tipoFuente: "AUTO_REPORTADO",
+    fuenteDeDato:
+      "Cuenta tus posts publicados del mes vs los planificados en el calendario de Discord",
+  },
+  {
+    codigo: "VALIDACION_PREVIA_CONTENIDO",
+    nombre: "Validacion de contenido con especialistas",
+    descripcion:
+      "% de captions y contenido validado con especialista o jefe antes de publicar",
+    unidad: "%",
+    peso: 20,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 90,
+    tipoFuente: "AUTO_REPORTADO",
+    fuenteDeDato:
+      "De todos los posts publicados, cuantos pasaron por validacion previa?",
+  },
+  {
+    codigo: "ANTICIPACION_PRE_WEBINAR",
+    nombre: "Anticipacion de contenido pre-webinar",
+    descripcion: "Posts programados al menos 3 dias antes del webinar",
+    unidad: "%",
+    peso: 20,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 100,
+    tipoFuente: "AUTO_CALCULADO",
+    funcionCalculo: "calcularKpiAnticipacionContenido",
+  },
+  {
+    codigo: "CALIDAD_SIN_ERRORES",
+    nombre: "Calidad sin errores humanos",
+    descripcion:
+      "Auditoria mensual de errores ortograficos, de marca, links rotos",
+    unidad: "%",
+    peso: 15,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 95,
+    tipoFuente: "EVALUADO_POR_JEFE",
+  },
+  {
+    codigo: "DIVERSIDAD_MARCAS",
+    nombre: "Diversidad de contenido por marca",
+    descripcion:
+      "Cantidad de marcas activas con contenido producido en el mes (ANSYS, Autodesk, Oracle, Inge)",
+    unidad: "marcas",
+    peso: 20,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 4,
+    tipoFuente: "AUTO_CALCULADO",
+    funcionCalculo: "calcularKpiDiversidadMarcas",
+  },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// Prompt 20 — KPIs reales de Hector (Diseñador Gráfico) basados en workflow real
+// ════════════════════════════════════════════════════════════════════════════
+export const KPIS_DISENADOR_GRAFICO: DefinicionKpiSeed[] = [
+  {
+    codigo: "CALIDAD_CHECKLISTS_DISENO_V2",
+    nombre: "Calidad de ejecucion de tareas de diseno",
+    descripcion:
+      "Checklists al 100% incluyendo verificacion de formato y peso",
+    unidad: "%",
+    peso: 20,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 95,
+    tipoFuente: "AUTO_CALCULADO",
+    funcionCalculo: "calcularKpiCalidadChecklists",
+  },
+  {
+    codigo: "TASA_ACEPTACION_PRIMERA",
+    nombre: "Aceptacion en primera ronda",
+    descripcion: "% de piezas aprobadas sin requerir cambios",
+    unidad: "%",
+    peso: 20,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 90,
+    tipoFuente: "AUTO_REPORTADO",
+    fuenteDeDato:
+      "De las piezas entregadas este mes, cuantas pasaron sin requerir cambios?",
+  },
+  {
+    codigo: "CUMPLIMIENTO_MANUAL_MARCA",
+    nombre: "Cumplimiento del manual de marca",
+    descripcion:
+      "Auditoria visual mensual de adherencia a identidad de marca",
+    unidad: "%",
+    peso: 15,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 95,
+    tipoFuente: "EVALUADO_POR_JEFE",
+  },
+  {
+    codigo: "DOCUMENTACION_OPORTUNA",
+    nombre: "Documentacion oportuna en nube",
+    descripcion:
+      "% de archivos editables subidos a nube tras entregar la pieza",
+    unidad: "%",
+    peso: 15,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 100,
+    tipoFuente: "AUTO_CALCULADO",
+    funcionCalculo: "calcularKpiDocumentacionOportuna",
+  },
+  {
+    codigo: "PRODUCTIVIDAD_PIEZAS",
+    nombre: "Productividad mensual",
+    descripcion: "Total de piezas entregadas en el mes",
+    unidad: "piezas",
+    peso: 20,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 30,
+    tipoFuente: "AUTO_CALCULADO",
+    funcionCalculo: "calcularKpiProductividadPiezas",
+  },
+  {
+    codigo: "APOYO_CRUZADO_DISENO",
+    nombre: "Apoyo cruzado a otros roles",
+    descripcion:
+      "Ayudas cruzadas validadas (cuando ejecutas tareas de otros roles por sobrecarga)",
+    unidad: "ayudas",
+    peso: 10,
+    tipoMeta: "ABSOLUTA",
+    valorObjetivoDefault: 3,
+    tipoFuente: "AUTO_CALCULADO",
+    funcionCalculo: "calcularKpiAyudasCruzadas",
+  },
+];

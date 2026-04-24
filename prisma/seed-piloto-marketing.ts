@@ -1,7 +1,11 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { KPIS_POR_PUESTO } from "../lib/kpis/definiciones-seed";
+import {
+  KPIS_POR_PUESTO,
+  KPIS_CONTENT_MANAGER,
+  KPIS_DISENADOR_GRAFICO,
+} from "../lib/kpis/definiciones-seed";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
@@ -735,6 +739,239 @@ async function main() {
     encuestasCreadas++;
   }
   console.log(`  Encuestas demo: ${encuestasCreadas}`);
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // Prompt 20 — KPIs reales de Nadia (Content Manager) y Hector (Diseñador)
+  // ═════════════════════════════════════════════════════════════════════════
+
+  const puestoContent = await prisma.puesto.findFirst({
+    where: { nombre: "Content Manager", areaId: marketing.id },
+  });
+  const puestoDiseno = await prisma.puesto.findFirst({
+    where: { nombre: "Disenador Grafico", areaId: marketing.id },
+  });
+
+  // Sembrar definiciones nuevas (upsert idempotente)
+  const defSeed: Array<{ puestoId: string; defs: typeof KPIS_CONTENT_MANAGER }> = [];
+  if (puestoContent) defSeed.push({ puestoId: puestoContent.id, defs: KPIS_CONTENT_MANAGER });
+  if (puestoDiseno) defSeed.push({ puestoId: puestoDiseno.id, defs: KPIS_DISENADOR_GRAFICO });
+
+  let newDefs = 0;
+  for (const { puestoId, defs } of defSeed) {
+    for (let i = 0; i < defs.length; i++) {
+      const d = defs[i];
+      await prisma.puestoKpiDefinicion.upsert({
+        where: { puestoId_codigo: { puestoId, codigo: d.codigo } },
+        create: {
+          puestoId,
+          codigo: d.codigo,
+          nombre: d.nombre,
+          descripcion: d.descripcion,
+          unidad: d.unidad,
+          peso: d.peso,
+          tipoMeta: d.tipoMeta,
+          valorObjetivoDefault: d.valorObjetivoDefault ?? null,
+          bonusPorcentaje: d.bonusPorcentaje ?? 15,
+          tipoFuente: d.tipoFuente ?? "AUTO_REPORTADO",
+          funcionCalculo: d.funcionCalculo ?? null,
+          fuenteDeDato: d.fuenteDeDato ?? null,
+          orden: 100 + i,
+        },
+        update: {
+          nombre: d.nombre,
+          descripcion: d.descripcion,
+          peso: d.peso,
+          tipoMeta: d.tipoMeta,
+          valorObjetivoDefault: d.valorObjetivoDefault ?? null,
+          tipoFuente: d.tipoFuente ?? "AUTO_REPORTADO",
+          funcionCalculo: d.funcionCalculo ?? null,
+          fuenteDeDato: d.fuenteDeDato ?? null,
+          orden: 100 + i,
+        },
+      });
+      newDefs++;
+    }
+  }
+  console.log(`  KPI definiciones (Prompt 20): ${newDefs} creadas/actualizadas`);
+
+  // Asignar las nuevas definiciones a los usuarios demo del mes actual
+  const usuariosNuevosRoles: Array<{ email: string; puestoId: string; defs: typeof KPIS_CONTENT_MANAGER }> = [
+    { email: "content@educanet.local", puestoId: puestoContent?.id ?? "", defs: KPIS_CONTENT_MANAGER },
+    { email: "disenador@educanet.local", puestoId: puestoDiseno?.id ?? "", defs: KPIS_DISENADOR_GRAFICO },
+  ].filter((u) => u.puestoId !== "");
+
+  let asigNuevos = 0;
+  for (const u of usuariosNuevosRoles) {
+    const user = await prisma.user.findUnique({ where: { email: u.email } });
+    if (!user) continue;
+
+    const defsDb = await prisma.puestoKpiDefinicion.findMany({
+      where: {
+        puestoId: u.puestoId,
+        codigo: { in: u.defs.map((d) => d.codigo) },
+      },
+    });
+
+    for (const def of defsDb) {
+      await prisma.kpiAsignacion.upsert({
+        where: {
+          userId_definicionId_periodoMes_periodoAnio: {
+            userId: user.id,
+            definicionId: def.id,
+            periodoMes: mes,
+            periodoAnio: anio,
+          },
+        },
+        create: {
+          userId: user.id,
+          definicionId: def.id,
+          periodoMes: mes,
+          periodoAnio: anio,
+          valorObjetivo: def.valorObjetivoDefault ?? 100,
+        },
+        update: {},
+      });
+      asigNuevos++;
+
+      // Registro semanal demo para semana previa
+      const semPrev = Math.max(1, semanaActual - 1);
+      const valorDemo = (def.valorObjetivoDefault ?? 100) * 0.9;
+      await prisma.kpiRegistroSemanal.upsert({
+        where: {
+          asignacionId_semanaDelAnio_anio: {
+            asignacionId: (await prisma.kpiAsignacion.findUnique({
+              where: {
+                userId_definicionId_periodoMes_periodoAnio: {
+                  userId: user.id,
+                  definicionId: def.id,
+                  periodoMes: mes,
+                  periodoAnio: anio,
+                },
+              },
+              select: { id: true },
+            }))!.id,
+            semanaDelAnio: semPrev,
+            anio,
+          },
+        },
+        create: {
+          asignacionId: (await prisma.kpiAsignacion.findUnique({
+            where: {
+              userId_definicionId_periodoMes_periodoAnio: {
+                userId: user.id,
+                definicionId: def.id,
+                periodoMes: mes,
+                periodoAnio: anio,
+              },
+            },
+            select: { id: true },
+          }))!.id,
+          semanaDelAnio: semPrev,
+          anio,
+          valor: Number(valorDemo.toFixed(2)),
+          reportadoPorId: user.id,
+          estadoValidacion:
+            def.tipoFuente === "AUTO_CALCULADO" ? "AUTO_VALIDADO" : "VALIDADO",
+          calculoAutomatico: def.tipoFuente === "AUTO_CALCULADO",
+        },
+        update: {},
+      });
+    }
+  }
+  console.log(`  KPI asignaciones (Prompt 20): ${asigNuevos}`);
+
+  // Eventos de gamificación demo para Nadia y Hector (tareas operativas)
+  const eventosNuevosRoles: Array<{ email: string; factor: number; cant: number }> = [
+    { email: "content@educanet.local", factor: 0.85, cant: 12 },
+    { email: "disenador@educanet.local", factor: 0.55, cant: 18 },
+  ];
+  for (const { email, cant } of eventosNuevosRoles) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) continue;
+    for (let i = 0; i < cant; i++) {
+      await prisma.eventoGamificacion.create({
+        data: {
+          userId: user.id,
+          tipo: "TAREA_OPERATIVA_COMPLETADA",
+          fuente: "TAREAS_OPERATIVAS",
+          cantidad: 4 + Math.floor(Math.random() * 4),
+          cantidadBruta: 4 + Math.floor(Math.random() * 4),
+          mesPeriodo: mes,
+          anioPeriodo: anio,
+        },
+      });
+    }
+  }
+  console.log(`  Eventos TAREAS_OPERATIVAS (Prompt 20): sembrados`);
+
+  // Tareas demo: Content Manager pre-webinar en el workflow demo
+  const workflowDemo = await prisma.workflowInstancia.findFirst({
+    where: { nombre: { contains: "Demo" } },
+  });
+  if (workflowDemo) {
+    const tareasContent = await prisma.catalogoTarea.findMany({
+      where: { codigo: { startsWith: "CONTENT_PRE_WEB" } },
+    });
+    const userContent = await prisma.user.findUnique({
+      where: { email: "content@educanet.local" },
+    });
+    if (userContent && tareasContent.length > 0) {
+      for (const tarea of tareasContent.slice(0, 3)) {
+        const yaExiste = await prisma.tareaInstancia.findFirst({
+          where: {
+            workflowInstanciaId: workflowDemo.id,
+            catalogoTareaId: tarea.id,
+            asignadoAId: userContent.id,
+          },
+        });
+        if (!yaExiste) {
+          await prisma.tareaInstancia.create({
+            data: {
+              workflowInstanciaId: workflowDemo.id,
+              catalogoTareaId: tarea.id,
+              asignadoAId: userContent.id,
+              fechaEstimadaInicio: new Date(),
+              fechaEstimadaFin: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+              estado: "PENDIENTE",
+              origen: "AUTO_WORKFLOW",
+            },
+          });
+        }
+      }
+      console.log(`  Tareas demo Content Manager: 3 pendientes en workflow demo`);
+    }
+
+    // Tarea demo Diseñador
+    const tareaDiseno = await prisma.catalogoTarea.findFirst({
+      where: { codigo: "DISENO_01_CAMBIO_FECHA" },
+    });
+    const userDiseno = await prisma.user.findUnique({
+      where: { email: "disenador@educanet.local" },
+    });
+    if (tareaDiseno && userDiseno) {
+      const yaExiste = await prisma.tareaInstancia.findFirst({
+        where: {
+          workflowInstanciaId: workflowDemo.id,
+          catalogoTareaId: tareaDiseno.id,
+          asignadoAId: userDiseno.id,
+        },
+      });
+      if (!yaExiste) {
+        await prisma.tareaInstancia.create({
+          data: {
+            workflowInstanciaId: workflowDemo.id,
+            catalogoTareaId: tareaDiseno.id,
+            asignadoAId: userDiseno.id,
+            fechaEstimadaInicio: new Date(),
+            fechaEstimadaFin: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+            estado: "PENDIENTE",
+            origen: "AUTO_WORKFLOW",
+          },
+        });
+        console.log(`  Tarea demo Diseñador: 1 pendiente en workflow demo`);
+      }
+    }
+  }
 
   console.log("\nListo.");
 }

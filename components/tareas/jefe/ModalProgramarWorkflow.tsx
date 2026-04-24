@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { AlertTriangle, Plus, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { crearWorkflow } from "@/lib/tareas/actions";
+import { cn } from "@/lib/utils";
+import { crearWorkflow, validarCoberturaAction } from "@/lib/tareas/actions";
+import type { CoberturaWorkflow } from "@/lib/tareas/validacion-cobertura";
 
 type Plantilla = {
   id: string;
@@ -52,12 +54,26 @@ export function ModalProgramarWorkflow({
   const [contextoMarca, setContextoMarca] = useState("");
   const [fechaHito, setFechaHito] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [cobertura, setCobertura] = useState<CoberturaWorkflow | null>(null);
+  const [validando, setValidando] = useState(false);
 
   const plantillaSel = plantillas.find((p) => p.id === plantillaId);
+
+  useEffect(() => {
+    if (!plantillaId || !areaId) {
+      setCobertura(null);
+      return;
+    }
+    setValidando(true);
+    validarCoberturaAction({ plantillaId, areaId })
+      .then(setCobertura)
+      .finally(() => setValidando(false));
+  }, [plantillaId, areaId]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!plantillaId || !nombre.trim() || !fechaHito) return;
+    if (cobertura && !cobertura.puedeCrearse) return;
 
     startTransition(async () => {
       const res = await crearWorkflow({
@@ -83,9 +99,14 @@ export function ModalProgramarWorkflow({
       setNombre("");
       setContextoMarca("");
       setFechaHito("");
+      setCobertura(null);
       router.refresh();
     });
   };
+
+  const errores = cobertura?.alertas.filter((a) => a.severidad === "ERROR") ?? [];
+  const advertencias = cobertura?.alertas.filter((a) => a.severidad === "WARNING") ?? [];
+  const puedeCrear = !cobertura || cobertura.puedeCrearse;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -128,6 +149,49 @@ export function ModalProgramarWorkflow({
             )}
           </div>
 
+          {/* Preview de cobertura */}
+          {plantillaId && (
+            <div className="space-y-2">
+              {validando && (
+                <p className="text-xs text-muted-foreground animate-pulse">
+                  Verificando cobertura del equipo…
+                </p>
+              )}
+              {!validando && cobertura && (
+                <>
+                  {errores.map((a, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+                    >
+                      <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                      <span>{a.mensaje}</span>
+                    </div>
+                  ))}
+                  {advertencias.map((a, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning-foreground"
+                    >
+                      <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" />
+                      <span>{a.mensaje}</span>
+                    </div>
+                  ))}
+                  {cobertura.puedeCrearse && cobertura.alertas.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      ✓ {cobertura.totalAsignables} de {cobertura.totalTareas} tareas se asignarán correctamente
+                    </p>
+                  )}
+                  {cobertura.puedeCrearse && cobertura.alertas.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {cobertura.totalAsignables} de {cobertura.totalTareas} tareas se asignarán correctamente
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="nombre">Nombre del workflow</Label>
             <Input
@@ -169,7 +233,11 @@ export function ModalProgramarWorkflow({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending || !plantillaId}>
+            <Button
+              type="submit"
+              disabled={isPending || !plantillaId || validando || !puedeCrear}
+              className={cn(!puedeCrear && "opacity-50")}
+            >
               {isPending ? "Creando…" : "Crear workflow"}
             </Button>
           </DialogFooter>

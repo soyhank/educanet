@@ -23,6 +23,8 @@
     "db:seed-hitos": "tsx prisma/seed-hitos-kpi.ts",
     "db:seed-catalogo": "tsx prisma/seed-catalogo-tareas.ts",
     "db:seed-workflow-demo": "tsx prisma/seed-workflow-demo.ts",
+    "db:seed-catalogo-content": "tsx prisma/seed-catalogo-content.ts",
+    "db:seed-catalogo-diseno": "tsx prisma/seed-catalogo-disenador.ts",
     "kpi:generar": "tsx prisma/kpi-generar-instancias.ts"
   },
   "dependencies": {

@@ -175,6 +175,148 @@ export async function calcularKpiReportePostEvento(
   };
 }
 
+// ─── Prompt 20: Content Manager ───────────────────────────────────
+
+export async function calcularKpiAnticipacionContenido(
+  params: CalcParams
+): Promise<CalcResult> {
+  const { inicio, fin } = rangoMes(params.mes, params.anio);
+
+  const tareasContenido = await prisma.tareaInstancia.findMany({
+    where: {
+      OR: [
+        { asignadoAId: params.userId },
+        { ejecutadaRealmenteId: params.userId },
+      ],
+      estado: "COMPLETADA",
+      completadaEn: { gte: inicio, lte: fin },
+      catalogoTarea: { codigo: { startsWith: "CONTENT_PRE_WEB" } },
+    },
+    include: { workflowInstancia: true },
+  });
+
+  if (tareasContenido.length === 0) {
+    return { valor: 100, snapshot: { sinData: true } };
+  }
+
+  const aTiempo = tareasContenido.filter((t) => {
+    if (!t.completadaEn || !t.workflowInstancia?.fechaHito) return false;
+    return differenceInDays(t.workflowInstancia.fechaHito, t.completadaEn) >= 3;
+  });
+
+  return {
+    valor: (aTiempo.length / tareasContenido.length) * 100,
+    snapshot: {
+      totalContenidoPreWebinar: tareasContenido.length,
+      aTiempo: aTiempo.length,
+    },
+  };
+}
+
+export async function calcularKpiDiversidadMarcas(
+  params: CalcParams
+): Promise<CalcResult> {
+  const { inicio, fin } = rangoMes(params.mes, params.anio);
+
+  const tareas = await prisma.tareaInstancia.findMany({
+    where: {
+      OR: [
+        { asignadoAId: params.userId },
+        { ejecutadaRealmenteId: params.userId },
+      ],
+      estado: "COMPLETADA",
+      completadaEn: { gte: inicio, lte: fin },
+    },
+    include: { workflowInstancia: true },
+  });
+
+  const marcasActivas = new Set<string>();
+  for (const t of tareas) {
+    if (t.workflowInstancia?.contextoMarca) {
+      marcasActivas.add(t.workflowInstancia.contextoMarca);
+    }
+    if (t.negocio) {
+      marcasActivas.add(t.negocio);
+    }
+  }
+
+  return {
+    valor: marcasActivas.size,
+    snapshot: { marcasActivas: Array.from(marcasActivas) },
+  };
+}
+
+// ─── Prompt 20: Diseñador Gráfico ─────────────────────────────────
+
+export async function calcularKpiDocumentacionOportuna(
+  params: CalcParams
+): Promise<CalcResult> {
+  const { inicio, fin } = rangoMes(params.mes, params.anio);
+
+  const tareasDiseno = await prisma.tareaInstancia.findMany({
+    where: {
+      OR: [
+        { asignadoAId: params.userId },
+        { ejecutadaRealmenteId: params.userId },
+      ],
+      estado: "COMPLETADA",
+      completadaEn: { gte: inicio, lte: fin },
+      catalogoTarea: { categoria: "DISENO" },
+    },
+    include: {
+      catalogoTarea: { include: { checklistItems: true } },
+      checklistMarcados: true,
+    },
+  });
+
+  if (tareasDiseno.length === 0) {
+    return { valor: 100, snapshot: { sinData: true } };
+  }
+
+  let conDocumentacion = 0;
+  for (const t of tareasDiseno) {
+    const itemSubidaNube = t.catalogoTarea?.checklistItems.find(
+      (i) =>
+        i.descripcion.toLowerCase().includes("nube") ||
+        i.descripcion.toLowerCase().includes("subir")
+    );
+    if (itemSubidaNube) {
+      const marcado = t.checklistMarcados.find(
+        (m) => m.plantillaItemId === itemSubidaNube.id && m.marcado
+      );
+      if (marcado) conDocumentacion++;
+    } else {
+      // Sin item de nube → se considera documentada (no aplica)
+      conDocumentacion++;
+    }
+  }
+
+  return {
+    valor: (conDocumentacion / tareasDiseno.length) * 100,
+    snapshot: { totalTareasDiseno: tareasDiseno.length, conDocumentacion },
+  };
+}
+
+export async function calcularKpiProductividadPiezas(
+  params: CalcParams
+): Promise<CalcResult> {
+  const { inicio, fin } = rangoMes(params.mes, params.anio);
+
+  const piezas = await prisma.tareaInstancia.count({
+    where: {
+      OR: [
+        { asignadoAId: params.userId },
+        { ejecutadaRealmenteId: params.userId },
+      ],
+      estado: "COMPLETADA",
+      completadaEn: { gte: inicio, lte: fin },
+      catalogoTarea: { categoria: "DISENO" },
+    },
+  });
+
+  return { valor: piezas, snapshot: { totalPiezas: piezas } };
+}
+
 // ─── Placeholders (pendiente integración externa) ─────────────────
 
 export async function calcularKpiPuntualidadPublicacion(
@@ -219,6 +361,7 @@ const FUNCIONES_CALCULO: Record<
   string,
   (p: CalcParams) => Promise<CalcResult>
 > = {
+  // Existentes
   calcularKpiCalidadChecklists,
   calcularKpiAnticipacion48h,
   calcularKpiResolucionBloqueos,
@@ -230,6 +373,12 @@ const FUNCIONES_CALCULO: Record<
   calcularKpiTiempoEntrega,
   calcularKpiMetasArea,
   calcularKpiDesarrolloEquipo,
+  // Prompt 20 — Content Manager
+  calcularKpiAnticipacionContenido,
+  calcularKpiDiversidadMarcas,
+  // Prompt 20 — Diseñador Gráfico
+  calcularKpiDocumentacionOportuna,
+  calcularKpiProductividadPiezas,
 };
 
 export async function ejecutarCalculoAutomatico(params: {
