@@ -66,6 +66,25 @@ enum FrecuenciaKpi {
   MENSUAL
 }
 
+enum TipoFuenteKpi {
+  AUTO_CALCULADO
+  AUTO_REPORTADO
+  EVALUADO_POR_JEFE
+}
+
+enum EstadoValidacionKpi {
+  PENDIENTE
+  VALIDADO
+  RECHAZADO
+  AUTO_VALIDADO
+}
+
+enum FrecuenciaReporte {
+  DIARIO
+  SEMANAL
+  MENSUAL
+}
+
 enum EstadoKpiInstancia {
   PENDIENTE
   EN_REVISION
@@ -76,9 +95,9 @@ enum EstadoKpiInstancia {
 
 enum TipoRango {
   BRONCE
-  PLATA
   ORO
   DIAMANTE
+  SIDERAL
 }
 
 enum TipoEventoGamificacion {
@@ -94,6 +113,7 @@ enum TipoEventoGamificacion {
   KPIS_MES_TOTAL
   KPI_HITO_APROBADO
   COMPROMISO_CUMPLIDO
+  TAREA_OPERATIVA_COMPLETADA
   RECONOCIMIENTO_RECIBIDO
   MISION_COMPLETADA
   BONUS_EQUIPO
@@ -103,6 +123,7 @@ enum TipoEventoGamificacion {
 enum FuenteXP {
   APRENDIZAJE
   KPIS
+  TAREAS_OPERATIVAS
   COMPROMISOS
   RECONOCIMIENTOS
   MISIONES
@@ -210,10 +231,11 @@ model User {
   reportesHechos    ReporteComentario[] @relation("Reportes")
   reportesResueltos ReporteComentario[] @relation("ResolucionReportes")
 
-  kpiAsignaciones     KpiAsignacion[]
-  kpiRegistros        KpiRegistroSemanal[]
-  rangosMensuales     RangoMensual[]
-  eventosGamificacion EventoGamificacion[]
+  kpiAsignaciones          KpiAsignacion[]
+  kpiRegistros             KpiRegistroSemanal[] @relation("KpiRegistrosReportados")
+  kpisValidados KpiRegistroSemanal[] @relation("KpiValidados")
+  rangosMensuales          RangoMensual[]
+  eventosGamificacion      EventoGamificacion[]
 
   hitosKpiAsignaciones KpiAsignacionMes[] @relation("HitosKpiUsuario")
   hitosKpiConfigurados KpiAsignacionMes[] @relation("HitosKpiConfigurador")
@@ -650,6 +672,12 @@ model PuestoKpiDefinicion {
   bonusPorcentaje      Int            @default(15)
   activa               Boolean        @default(true)
   orden                Int            @default(0)
+  // Prompt 19A — tipo de fuente y validación
+  tipoFuente           TipoFuenteKpi  @default(AUTO_REPORTADO)
+  funcionCalculo       String?
+  frecuenciaReporte    FrecuenciaReporte @default(SEMANAL)
+  requiereValidacion   Boolean        @default(true)
+  fuenteDeDato         String?        @db.Text
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -744,11 +772,22 @@ model KpiRegistroSemanal {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Prompt 19A — estado de validación
+  estadoValidacion     EstadoValidacionKpi @default(PENDIENTE)
+  validadoPorId        String?
+  validadoEn           DateTime?
+  comentarioValidacion String?             @db.Text
+  rechazoMotivo        String?             @db.Text
+  calculoAutomatico    Boolean             @default(false)
+  snapshotDataFuente   Json?
+
   asignacion   KpiAsignacion @relation(fields: [asignacionId], references: [id], onDelete: Cascade)
-  reportadoPor User          @relation(fields: [reportadoPorId], references: [id])
+  reportadoPor User          @relation("KpiRegistrosReportados", fields: [reportadoPorId], references: [id])
+  validadoPor  User?         @relation("KpiValidados", fields: [validadoPorId], references: [id])
 
   @@unique([asignacionId, semanaDelAnio, anio])
   @@index([asignacionId])
+  @@index([estadoValidacion])
 }
 
 model KpiResultadoMensual {
@@ -765,20 +804,21 @@ model KpiResultadoMensual {
 }
 
 model RangoMensual {
-  id                    String    @id @default(cuid())
-  userId                String
-  periodoMes            Int
-  periodoAnio           Int
-  puntosTotales         Int
-  puntosKpis            Int       @default(0)
-  puntosCursos          Int       @default(0)
-  puntosCompromisos     Int       @default(0)
-  puntosReconocimientos Int       @default(0)
-  puntosMisiones        Int       @default(0)
-  cumplimientoKpis      Float     @default(0)
-  multiplicadorAplicado Boolean   @default(false)
-  rango                 TipoRango
-  calculadoEn           DateTime  @default(now())
+  id                     String    @id @default(cuid())
+  userId                 String
+  periodoMes             Int
+  periodoAnio            Int
+  puntosTotales          Int
+  puntosKpis             Int       @default(0)
+  puntosCursos           Int       @default(0)
+  puntosTareasOperativas Int       @default(0)
+  puntosCompromisos      Int       @default(0)
+  puntosReconocimientos  Int       @default(0)
+  puntosMisiones         Int       @default(0)
+  cumplimientoKpis       Float     @default(0)
+  multiplicadorAplicado  Boolean   @default(false)
+  rango                  TipoRango
+  calculadoEn            DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -934,7 +974,7 @@ model EncuestaSemanal {
 
 // ═══════════════════════════════════════════════════════════════════
 // Prompt 18 — Tareas operativas estructuradas (workflows + checklist)
-// Los puntos pasan por procesarEvento (fuente COMPROMISOS, tope 200/mes)
+// Los puntos pasan por procesarEvento (fuente TAREAS_OPERATIVAS, tope 350/mes)
 // ═══════════════════════════════════════════════════════════════════
 
 enum CategoriaTarea {
@@ -986,9 +1026,9 @@ enum EstadoTareaInstancia {
 }
 
 enum OrigenTarea {
-  AUTO_WORKFLOW   // generada al crear workflow
-  ASIGNADA_JEFE   // asignada directamente por el jefe (con o sin workflow)
-  AUTO_ASIGNADA   // el empleado la creó por su cuenta (requiere validación)
+  AUTO_WORKFLOW // generada al crear workflow
+  ASIGNADA_JEFE // asignada directamente por el jefe (con o sin workflow)
+  AUTO_ASIGNADA // el empleado la creó por su cuenta (requiere validación)
 }
 
 enum Negocio {
@@ -1110,19 +1150,19 @@ model WorkflowInstancia {
 }
 
 model TareaInstancia {
-  id                        String               @id @default(cuid())
-  workflowInstanciaId       String?              // opcional para tareas ad-hoc
-  catalogoTareaId           String?              // opcional para tareas ad-hoc
-  asignadoAId               String
-  origen                    OrigenTarea          @default(AUTO_WORKFLOW)
-  estado                    EstadoTareaInstancia @default(PENDIENTE)
+  id                  String               @id @default(cuid())
+  workflowInstanciaId String? // opcional para tareas ad-hoc
+  catalogoTareaId     String? // opcional para tareas ad-hoc
+  asignadoAId         String
+  origen              OrigenTarea          @default(AUTO_WORKFLOW)
+  estado              EstadoTareaInstancia @default(PENDIENTE)
 
   // Datos ad-hoc (cuando no hay catálogo)
-  nombreAdHoc               String?
-  descripcionAdHoc          String?              @db.Text
-  puntosBaseAdHoc           Int?
-  tiempoEstimadoMinAdHoc    Int?
-  tiempoEstimadoMaxAdHoc    Int?
+  nombreAdHoc            String?
+  descripcionAdHoc       String? @db.Text
+  puntosBaseAdHoc        Int?
+  tiempoEstimadoMinAdHoc Int?
+  tiempoEstimadoMaxAdHoc Int?
 
   fechaEstimadaInicio       DateTime
   fechaEstimadaFin          DateTime
@@ -1133,32 +1173,35 @@ model TareaInstancia {
   bloqueoExternoDesde       DateTime?
   bloqueoExternoHasta       DateTime?
   bloqueoExternoResponsable String?
-  bloqueoExternoMotivo      String?              @db.Text
+  bloqueoExternoMotivo      String?   @db.Text
   completadaEn              DateTime?
   calidadAutoeval           Int?
-  notasEjecutor             String?              @db.Text
-  ejecutadaPorOtro          Boolean              @default(false)
+  notasEjecutor             String?   @db.Text
+  ejecutadaPorOtro          Boolean   @default(false)
   ejecutadaRealmenteId      String?
   motivoAyuda               String?
 
   // Negocio / marca al que responde la tarea
-  negocio                   Negocio?
+  negocio Negocio?
+
+  // Checklist libre para tareas ad-hoc — Array<{ texto: string; marcado: boolean }>
+  checklistAdHoc Json?
 
   // Validación del jefe (para ad-hoc del empleado)
-  requiereValidacionJefe    Boolean              @default(false)
-  validadaPorJefeId         String?
-  validadaEn                DateTime?
-  comentarioValidacion      String?              @db.Text
+  requiereValidacionJefe Boolean   @default(false)
+  validadaPorJefeId      String?
+  validadaEn             DateTime?
+  comentarioValidacion   String?   @db.Text
 
   // Puntos — brutos y prorrateados
-  puntosBrutos              Int                  @default(0)
-  puntosOtorgados           Int                  @default(0)
-  puntosATiempo             Boolean              @default(false)
-  puntosDesbloqueo          Boolean              @default(false)
-  factorProrrateo           Float                @default(1.0)
+  puntosBrutos     Int     @default(0)
+  puntosOtorgados  Int     @default(0)
+  puntosATiempo    Boolean @default(false)
+  puntosDesbloqueo Boolean @default(false)
+  factorProrrateo  Float   @default(1.0)
 
-  createdAt                 DateTime             @default(now())
-  updatedAt                 DateTime             @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   workflowInstancia  WorkflowInstancia?     @relation(fields: [workflowInstanciaId], references: [id], onDelete: Cascade)
   catalogoTarea      CatalogoTarea?         @relation(fields: [catalogoTareaId], references: [id], onDelete: Restrict)
@@ -1180,7 +1223,9 @@ model ChecklistItemMarcado {
   marcado             Boolean   @default(false)
   marcadoEn           DateTime?
   notaRapida          String?
-  /** Override local del texto del paso (si se edita en la instancia). */
+  /**
+   * Override local del texto del paso (si se edita en la instancia).
+   */
   descripcionOverride String?   @db.Text
 
   tareaInstancia TareaInstancia         @relation(fields: [tareaInstanciaId], references: [id], onDelete: Cascade)

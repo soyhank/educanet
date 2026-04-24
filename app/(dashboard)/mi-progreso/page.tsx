@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BentoGrid, BentoItem } from "@/components/ui/primitives/BentoGrid";
 import { HaloBackground } from "@/components/ui/primitives/HaloBackground";
 import { KineticTitle } from "@/components/ui/primitives/KineticTitle";
+import { AvisoNuevaEstructura } from "@/components/mi-progreso/AvisoNuevaEstructura";
 
 const MESES_ES = [
   "enero",
@@ -68,6 +69,8 @@ export default async function MiProgresoPage() {
           </p>
         </div>
       </section>
+
+      <AvisoNuevaEstructura />
 
       <div className="space-y-6">
         <CardEncuestaSemanal

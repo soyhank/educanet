@@ -1,4 +1,4 @@
-import type { TipoMetaKpi } from "@prisma/client";
+import type { TipoMetaKpi, TipoFuenteKpi } from "@prisma/client";
 
 export type DefinicionKpiSeed = {
   codigo: string;
@@ -9,6 +9,9 @@ export type DefinicionKpiSeed = {
   tipoMeta: TipoMetaKpi;
   valorObjetivoDefault?: number;
   bonusPorcentaje?: number;
+  tipoFuente?: TipoFuenteKpi;
+  funcionCalculo?: string;
+  fuenteDeDato?: string;
 };
 
 export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
@@ -19,10 +22,12 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       descripcion:
         "Piezas publicadas vs planificadas segun el calendario editorial del mes.",
       unidad: "%",
-      peso: 30,
+      peso: 25,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 100,
       bonusPorcentaje: 10,
+      tipoFuente: "AUTO_REPORTADO",
+      fuenteDeDato: "Cuenta tus piezas del calendario editorial de Notion",
     },
     {
       codigo: "ENGAGEMENT_PROMEDIO",
@@ -30,9 +35,11 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       descripcion:
         "Comparado con tu baseline personal de los 3 meses anteriores.",
       unidad: "%",
-      peso: 25,
+      peso: 20,
       tipoMeta: "RELATIVA_BASELINE",
       bonusPorcentaje: 15,
+      tipoFuente: "AUTO_REPORTADO",
+      fuenteDeDato: "Exporta metricas de Meta Insights y LinkedIn Analytics",
     },
     {
       codigo: "PUNTUALIDAD_PUBLICACION",
@@ -43,6 +50,8 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       peso: 20,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 95,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiPuntualidadPublicacion",
     },
     {
       codigo: "CRECIMIENTO_AUDIENCIA",
@@ -53,6 +62,8 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       peso: 15,
       tipoMeta: "RELATIVA_BASELINE",
       bonusPorcentaje: 20,
+      tipoFuente: "AUTO_REPORTADO",
+      fuenteDeDato: "Meta Insights + LinkedIn Analytics",
     },
     {
       codigo: "CALIDAD_PIEZAS",
@@ -60,9 +71,10 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       descripcion:
         "Cumplimiento del manual de marca y revision ortografica.",
       unidad: "%",
-      peso: 10,
+      peso: 20,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 100,
+      tipoFuente: "EVALUADO_POR_JEFE",
     },
   ],
 
@@ -73,25 +85,31 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       descripcion:
         "Tu ROAS del mes comparado con tu promedio historico.",
       unidad: "ratio",
-      peso: 30,
+      peso: 25,
       tipoMeta: "RELATIVA_BASELINE",
       bonusPorcentaje: 20,
+      tipoFuente: "AUTO_REPORTADO",
+      fuenteDeDato: "Meta Ads Manager → Reports → Custom",
     },
     {
       codigo: "CPL_VS_META",
       nombre: "CPL vs meta",
       descripcion: "Costo por lead comparado con la meta acordada.",
       unidad: "S/",
-      peso: 25,
+      peso: 20,
       tipoMeta: "ABSOLUTA",
+      tipoFuente: "AUTO_REPORTADO",
+      fuenteDeDato: "Meta Ads Manager",
     },
     {
       codigo: "CTR_PROMEDIO",
       nombre: "CTR promedio de anuncios",
       descripcion: "Click-through rate vs baseline de industria.",
       unidad: "%",
-      peso: 20,
+      peso: 15,
       tipoMeta: "RELATIVA_BASELINE",
+      tipoFuente: "AUTO_REPORTADO",
+      fuenteDeDato: "Meta Ads Manager",
     },
     {
       codigo: "KEYWORDS_TOP10",
@@ -101,6 +119,8 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       peso: 15,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 5,
+      tipoFuente: "AUTO_REPORTADO",
+      fuenteDeDato: "SEMrush → Position Tracking",
     },
     {
       codigo: "REPORTES_SEMANALES",
@@ -110,6 +130,20 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       peso: 10,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 4,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiReportesSemanales",
+    },
+    {
+      codigo: "CALIDAD_CHECKLISTS_SEO",
+      nombre: "Calidad de ejecucion SEO",
+      descripcion:
+        "Checklists completos en tareas SEO (incluye verificacion peso imagen).",
+      unidad: "%",
+      peso: 15,
+      tipoMeta: "ABSOLUTA",
+      valorObjetivoDefault: 95,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiCalidadChecklists",
     },
   ],
 
@@ -119,36 +153,55 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       nombre: "Piezas entregadas vs solicitadas",
       descripcion: "Porcentaje de solicitudes atendidas en el mes.",
       unidad: "%",
-      peso: 25,
-      tipoMeta: "ABSOLUTA",
-      valorObjetivoDefault: 95,
-    },
-    {
-      codigo: "TIEMPO_ENTREGA",
-      nombre: "Tiempo promedio de entrega",
-      descripcion:
-        "Dias promedio vs meta acordada por complejidad de pieza.",
-      unidad: "dias",
       peso: 20,
       tipoMeta: "ABSOLUTA",
+      valorObjetivoDefault: 95,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiPiezasEntregadas",
     },
     {
       codigo: "APROBACION_PRIMERA",
       nombre: "Piezas aprobadas en primera ronda",
       descripcion: "Porcentaje de piezas aprobadas sin requerir cambios.",
       unidad: "%",
-      peso: 25,
+      peso: 20,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 70,
+      tipoFuente: "AUTO_REPORTADO",
+      fuenteDeDato: "Cuenta las piezas del mes: cuantas pasaron sin cambios?",
     },
     {
       codigo: "MANUAL_MARCA",
       nombre: "Cumplimiento del manual de marca",
       descripcion: "Audit mensual de adherencia a identidad visual.",
       unidad: "%",
+      peso: 15,
+      tipoMeta: "ABSOLUTA",
+      valorObjetivoDefault: 95,
+      tipoFuente: "EVALUADO_POR_JEFE",
+    },
+    {
+      codigo: "CALIDAD_CHECKLISTS_DISENO",
+      nombre: "Calidad de ejecucion de tareas de diseno",
+      descripcion:
+        "Checklists al 100% incluyendo verificacion de formato y peso.",
+      unidad: "%",
       peso: 20,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 95,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiCalidadChecklists",
+    },
+    {
+      codigo: "TIEMPO_ENTREGA",
+      nombre: "Entregas dentro del tiempo estimado",
+      descripcion: "Porcentaje de piezas dentro del rango estimado.",
+      unidad: "%",
+      peso: 15,
+      tipoMeta: "ABSOLUTA",
+      valorObjetivoDefault: 85,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiTiempoEntrega",
     },
     {
       codigo: "APOYO_EXTRA",
@@ -160,6 +213,8 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 3,
       bonusPorcentaje: 15,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiAyudasCruzadas",
     },
   ],
 
@@ -169,9 +224,11 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       nombre: "Cumplimiento global de metas del area",
       descripcion: "Promedio ponderado de metas del equipo.",
       unidad: "%",
-      peso: 35,
+      peso: 30,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 90,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiMetasArea",
     },
     {
       codigo: "ONE_ON_ONES",
@@ -181,6 +238,8 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       peso: 15,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 4,
+      tipoFuente: "AUTO_REPORTADO",
+      fuenteDeDato: "Cuenta los 1:1s realizados en tu calendario",
     },
     {
       codigo: "REPORTE_GERENCIAL",
@@ -190,6 +249,7 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       peso: 15,
       tipoMeta: "BINARIA",
       valorObjetivoDefault: 1,
+      tipoFuente: "AUTO_REPORTADO",
     },
     {
       codigo: "ACCIONES_CLIMA",
@@ -200,16 +260,19 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       peso: 15,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 3,
+      tipoFuente: "AUTO_REPORTADO",
     },
     {
       codigo: "DESARROLLO_EQUIPO",
       nombre: "Desarrollo del equipo",
       descripcion: "Porcentaje de cursos completados por tus reportes directos.",
       unidad: "%",
-      peso: 20,
+      peso: 25,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 75,
       bonusPorcentaje: 20,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiDesarrolloEquipo",
     },
   ],
 
@@ -220,45 +283,76 @@ export const KPIS_POR_PUESTO: Record<string, DefinicionKpiSeed[]> = {
       descripcion:
         "Porcentaje de eventos completados sin problemas mayores.",
       unidad: "%",
-      peso: 30,
-      tipoMeta: "ABSOLUTA",
-      valorObjetivoDefault: 95,
-    },
-    {
-      codigo: "CHECKLIST_48H",
-      nombre: "Checklist pre-evento 48h antes",
-      descripcion: "Porcentaje de checklists completos al menos 48h antes.",
-      unidad: "%",
-      peso: 20,
-      tipoMeta: "ABSOLUTA",
-      valorObjetivoDefault: 100,
-    },
-    {
-      codigo: "PRESUPUESTO",
-      nombre: "Proveedores dentro de presupuesto",
-      descripcion: "Porcentaje de eventos dentro del presupuesto asignado.",
-      unidad: "%",
       peso: 20,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 95,
+      tipoFuente: "EVALUADO_POR_JEFE",
     },
     {
       codigo: "SATISFACCION",
       nombre: "Satisfaccion post-evento",
       descripcion: "Score promedio de encuestas post-evento (1-5).",
       unidad: "score",
-      peso: 20,
+      peso: 15,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 4.3,
+      tipoFuente: "AUTO_REPORTADO",
+      fuenteDeDato: "Descarga encuesta post-evento de Google Forms",
+    },
+    {
+      codigo: "PRESUPUESTO",
+      nombre: "Proveedores dentro de presupuesto",
+      descripcion: "Porcentaje de eventos dentro del presupuesto asignado.",
+      unidad: "%",
+      peso: 15,
+      tipoMeta: "ABSOLUTA",
+      valorObjetivoDefault: 95,
+      tipoFuente: "EVALUADO_POR_JEFE",
+    },
+    {
+      codigo: "CALIDAD_CHECKLISTS",
+      nombre: "Calidad de ejecucion de checklists",
+      descripcion:
+        "Porcentaje de tareas completadas con items obligatorios al 100%.",
+      unidad: "%",
+      peso: 20,
+      tipoMeta: "ABSOLUTA",
+      valorObjetivoDefault: 95,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiCalidadChecklists",
+    },
+    {
+      codigo: "CHECKLIST_48H",
+      nombre: "Anticipacion de tareas pre-webinar",
+      descripcion: "Porcentaje de tareas PRE_WEBINAR completadas 48h antes del hito.",
+      unidad: "%",
+      peso: 15,
+      tipoMeta: "ABSOLUTA",
+      valorObjetivoDefault: 100,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiAnticipacion48h",
+    },
+    {
+      codigo: "RESOLUCION_BLOQUEOS",
+      nombre: "Velocidad de desbloqueo",
+      descripcion: "Dias promedio para resolver bloqueos externos.",
+      unidad: "dias",
+      peso: 10,
+      tipoMeta: "ABSOLUTA",
+      valorObjetivoDefault: 3,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiResolucionBloqueos",
     },
     {
       codigo: "REPORTE_POST_EVENTO",
       nombre: "Reporte post-evento en 72h",
       descripcion: "Porcentaje de reportes entregados dentro de 72h.",
       unidad: "%",
-      peso: 10,
+      peso: 5,
       tipoMeta: "ABSOLUTA",
       valorObjetivoDefault: 100,
+      tipoFuente: "AUTO_CALCULADO",
+      funcionCalculo: "calcularKpiReportePostEvento",
     },
   ],
 };

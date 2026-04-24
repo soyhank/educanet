@@ -7,7 +7,7 @@ import {
   obtenerTareasUsuario,
   obtenerEstadisticasTareasUsuario,
 } from "@/lib/tareas/queries";
-import { obtenerProyeccionMesUsuario } from "@/lib/tareas/helpers";
+import { obtenerProyeccionMesUsuario, TOPE_MENSUAL_TAREAS_OPERATIVAS } from "@/lib/tareas/helpers";
 import { Card, CardContent } from "@/components/ui/card";
 import { KanbanTareas } from "@/components/tareas/KanbanTareas";
 import { ModalNuevaAdHoc } from "@/components/tareas/ModalNuevaAdHoc";
@@ -74,7 +74,7 @@ export default async function TareasPage() {
               <StatMini
                 icon={<Sparkles className="h-3.5 w-3.5 text-primary" />}
                 label="Puntos del mes"
-                value={`${proyeccion?.puntosOtorgadosReales ?? 0} / 200`}
+                value={`${proyeccion?.puntosOtorgadosReales ?? 0} / ${TOPE_MENSUAL_TAREAS_OPERATIVAS}`}
               />
               <StatMini
                 icon={<CheckCircle2 className="h-3.5 w-3.5 text-success" />}
@@ -107,7 +107,7 @@ export default async function TareasPage() {
           <div className="flex items-start justify-center md:justify-end">
             <VelocimetroPuntos
               puntos={proyeccion?.puntosOtorgadosReales ?? 0}
-              tope={200}
+              tope={TOPE_MENSUAL_TAREAS_OPERATIVAS}
             />
           </div>
         </CardContent>
@@ -119,7 +119,7 @@ export default async function TareasPage() {
           <p className="font-medium text-primary">Prorrateo activo este mes</p>
           <p className="mt-0.5 text-muted-foreground">
             Tu proyección es {proyeccion.totalProyectado} pts (brutos) y el tope
-            mensual es 200. Cada tarea completada se otorga con factor{" "}
+            mensual es {TOPE_MENSUAL_TAREAS_OPERATIVAS}. Cada tarea completada se otorga con factor{" "}
             <strong className="text-foreground">
               × {proyeccion.factor.toFixed(2)}
             </strong>{" "}

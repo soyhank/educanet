@@ -12,9 +12,9 @@ type Props = {
 
 const LABEL_RANGO: Record<TipoRango, string> = {
   BRONCE: "Bronce",
-  PLATA: "Plata",
   ORO: "Oro",
   DIAMANTE: "Diamante",
+  SIDERAL: "Sideral",
 };
 
 function colorPorPorcentaje(pct: number): string {

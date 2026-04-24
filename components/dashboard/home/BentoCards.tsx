@@ -21,9 +21,9 @@ export function RangoBentoCard({
 }) {
   const labels: Record<TipoRango, string> = {
     BRONCE: "Bronce",
-    PLATA: "Plata",
     ORO: "Oro",
     DIAMANTE: "Diamante",
+    SIDERAL: "Sideral",
   };
   return (
     <GlassCard intensity="strong" className="h-full p-6" withPointerGlow>

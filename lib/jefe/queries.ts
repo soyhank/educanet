@@ -72,9 +72,9 @@ export async function obtenerDashboardJefe(params: {
 
   const distribucionRangos: Record<TipoRango, number> = {
     BRONCE: 0,
-    PLATA: 0,
     ORO: 0,
     DIAMANTE: 0,
+    SIDERAL: 0,
   };
   for (const r of rangos) distribucionRangos[r.rango]++;
 

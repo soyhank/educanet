@@ -3,23 +3,23 @@ import type { TipoRango, FuenteXP } from "@prisma/client";
 
 export const UMBRALES_RANGO = {
   BRONCE: { min: 0, max: 800 },
-  PLATA: { min: 800, max: 1400 },
-  ORO: { min: 1400, max: 1800 },
-  DIAMANTE: { min: 1800, max: Infinity },
+  ORO: { min: 800, max: 1400 },
+  DIAMANTE: { min: 1400, max: 1800 },
+  SIDERAL: { min: 1800, max: Infinity },
 } as const;
 
 export function rangoSegunPuntos(puntos: number): TipoRango {
-  if (puntos >= 1800) return "DIAMANTE";
-  if (puntos >= 1400) return "ORO";
-  if (puntos >= 800) return "PLATA";
+  if (puntos >= 1800) return "SIDERAL";
+  if (puntos >= 1400) return "DIAMANTE";
+  if (puntos >= 800) return "ORO";
   return "BRONCE";
 }
 
 const RANGO_ORDEN: Record<TipoRango, number> = {
   BRONCE: 0,
-  PLATA: 1,
-  ORO: 2,
-  DIAMANTE: 3,
+  ORO: 1,
+  DIAMANTE: 2,
+  SIDERAL: 3,
 };
 
 export function rangoOrden(r: TipoRango): number {
@@ -27,9 +27,9 @@ export function rangoOrden(r: TipoRango): number {
 }
 
 export function siguienteRango(r: TipoRango): TipoRango | null {
-  if (r === "BRONCE") return "PLATA";
-  if (r === "PLATA") return "ORO";
+  if (r === "BRONCE") return "ORO";
   if (r === "ORO") return "DIAMANTE";
+  if (r === "DIAMANTE") return "SIDERAL";
   return null;
 }
 
@@ -71,6 +71,7 @@ function puntosPorFuenteVacio(): PuntosPorFuente {
   return {
     APRENDIZAJE: 0,
     KPIS: 0,
+    TAREAS_OPERATIVAS: 0,
     COMPROMISOS: 0,
     RECONOCIMIENTOS: 0,
     MISIONES: 0,
@@ -149,6 +150,7 @@ export async function recalcularRangoMensual(
       puntosTotales,
       puntosKpis: puntosPorFuente.KPIS,
       puntosCursos: puntosPorFuente.APRENDIZAJE,
+      puntosTareasOperativas: puntosPorFuente.TAREAS_OPERATIVAS,
       puntosCompromisos: puntosPorFuente.COMPROMISOS,
       puntosReconocimientos: puntosPorFuente.RECONOCIMIENTOS,
       puntosMisiones: puntosPorFuente.MISIONES,
@@ -160,6 +162,7 @@ export async function recalcularRangoMensual(
       puntosTotales,
       puntosKpis: puntosPorFuente.KPIS,
       puntosCursos: puntosPorFuente.APRENDIZAJE,
+      puntosTareasOperativas: puntosPorFuente.TAREAS_OPERATIVAS,
       puntosCompromisos: puntosPorFuente.COMPROMISOS,
       puntosReconocimientos: puntosPorFuente.RECONOCIMIENTOS,
       puntosMisiones: puntosPorFuente.MISIONES,

@@ -140,6 +140,9 @@ async function main() {
           tipoMeta: d.tipoMeta,
           valorObjetivoDefault: d.valorObjetivoDefault ?? null,
           bonusPorcentaje: d.bonusPorcentaje ?? 15,
+          tipoFuente: d.tipoFuente ?? "AUTO_REPORTADO",
+          funcionCalculo: d.funcionCalculo ?? null,
+          fuenteDeDato: d.fuenteDeDato ?? null,
           orden: i + 1,
         },
         update: {
@@ -150,6 +153,9 @@ async function main() {
           tipoMeta: d.tipoMeta,
           valorObjetivoDefault: d.valorObjetivoDefault ?? null,
           bonusPorcentaje: d.bonusPorcentaje ?? 15,
+          tipoFuente: d.tipoFuente ?? "AUTO_REPORTADO",
+          funcionCalculo: d.funcionCalculo ?? null,
+          fuenteDeDato: d.fuenteDeDato ?? null,
           orden: i + 1,
         },
       });
@@ -202,14 +208,19 @@ async function main() {
       orderBy: { orden: "asc" },
     });
 
-    // Factor de "salud" del usuario: content y trafficker bajos para
-    // mostrar el multiplicador. Jefe y eventos altos. Disenador medio.
+    // Factor de "salud" del usuario. Calibrado para que los 5 miembros del
+    // piloto queden distribuidos en los 4 rangos distintos:
+    //   - Diseñador 0.55 → BRONCE (arrancando mes, < 70% multiplicador)
+    //   - Content   0.85 → ORO
+    //   - Trafficker 0.95 → ORO alto (cerca de DIAMANTE)
+    //   - Asistente 1.15 → DIAMANTE
+    //   - Jefe      1.40 → SIDERAL (vista del rango aspiracional máximo)
     const factorSalud: Record<string, number> = {
-      CONTENT_MANAGER: 0.55,
-      TRAFFICKER: 0.65,
-      DISENADOR_GRAFICO: 0.85,
-      JEFE_MARKETING: 1.1,
-      ASISTENTE_EVENTOS: 0.95,
+      DISENADOR_GRAFICO: 0.55,
+      CONTENT_MANAGER: 0.85,
+      TRAFFICKER: 0.95,
+      ASISTENTE_EVENTOS: 1.15,
+      JEFE_MARKETING: 1.4,
     };
     const factor = factorSalud[u.kpisKey] ?? 0.8;
 
@@ -250,6 +261,22 @@ async function main() {
         if (d.tipoMeta === "BINARIA") {
           valor = factor > 0.7 ? 1 : 0;
         }
+
+        // Demo: semana previa → VALIDADO; semana actual varía por tipo
+        const esSemanaActual = semana === semanaActual;
+        let estadoValidacion: "PENDIENTE" | "VALIDADO" | "RECHAZADO" | "AUTO_VALIDADO";
+        if (!esSemanaActual) {
+          estadoValidacion = "VALIDADO";
+        } else if (d.tipoFuente === "AUTO_CALCULADO") {
+          estadoValidacion = "AUTO_VALIDADO";
+        } else if (d.tipoFuente === "EVALUADO_POR_JEFE") {
+          estadoValidacion = "VALIDADO";
+        } else {
+          // AUTO_REPORTADO: primero PENDIENTE, JEFE_MARKETING ya tiene VALIDADO
+          estadoValidacion =
+            u.kpisKey === "JEFE_MARKETING" ? "VALIDADO" : "PENDIENTE";
+        }
+
         await prisma.kpiRegistroSemanal.upsert({
           where: {
             asignacionId_semanaDelAnio_anio: {
@@ -264,20 +291,35 @@ async function main() {
             anio,
             valor: Number(valor.toFixed(2)),
             reportadoPorId: u.user.id,
+            estadoValidacion,
+            calculoAutomatico: d.tipoFuente === "AUTO_CALCULADO",
           },
           update: {
             valor: Number(valor.toFixed(2)),
+            estadoValidacion,
           },
         });
         totalRegistros++;
       }
     }
 
-    // 5. Simular algunos eventos de gamificacion para poblar el breakdown
-    // (lecciones, compromisos, reconocimientos)
+    // 5. Simular eventos de gamificacion para poblar el breakdown y
+    //    generar distribución realista de rangos en el piloto:
+    //    Jefe → DIAMANTE, Pamela/Claudia → ORO, Content → ORO,
+    //    Diseñador → BRONCE.
     const eventosSemilla: Array<{
-      tipo: "LECCION_COMPLETADA" | "COMPROMISO_CUMPLIDO" | "RECONOCIMIENTO_RECIBIDO";
-      fuente: "APRENDIZAJE" | "COMPROMISOS" | "RECONOCIMIENTOS";
+      tipo:
+        | "LECCION_COMPLETADA"
+        | "KPI_HITO_APROBADO"
+        | "TAREA_OPERATIVA_COMPLETADA"
+        | "COMPROMISO_CUMPLIDO"
+        | "RECONOCIMIENTO_RECIBIDO";
+      fuente:
+        | "APRENDIZAJE"
+        | "KPIS"
+        | "TAREAS_OPERATIVAS"
+        | "COMPROMISOS"
+        | "RECONOCIMIENTOS";
       cantidad: number;
       repeticiones: number;
     }> = [
@@ -285,19 +327,34 @@ async function main() {
         tipo: "LECCION_COMPLETADA",
         fuente: "APRENDIZAJE",
         cantidad: 10,
-        repeticiones: Math.floor(factor * 15),
+        repeticiones: Math.floor(factor * 28),
       },
+      // KPIs del mes: aporte principal que distingue rangos entre miembros.
+      {
+        tipo: "KPI_HITO_APROBADO",
+        fuente: "KPIS",
+        cantidad: 50,
+        repeticiones: Math.floor(factor * 16),
+      },
+      // Workflow del Prompt 18: tareas del rol estándar.
+      {
+        tipo: "TAREA_OPERATIVA_COMPLETADA",
+        fuente: "TAREAS_OPERATIVAS",
+        cantidad: 15,
+        repeticiones: Math.floor(factor * 18),
+      },
+      // Compromisos voluntarios (tope bajo: iniciativa al margen del rol).
       {
         tipo: "COMPROMISO_CUMPLIDO",
         fuente: "COMPROMISOS",
-        cantidad: 25,
-        repeticiones: Math.floor(factor * 5),
+        cantidad: 20,
+        repeticiones: Math.floor(factor * 3),
       },
       {
         tipo: "RECONOCIMIENTO_RECIBIDO",
         fuente: "RECONOCIMIENTOS",
         cantidad: 40,
-        repeticiones: Math.floor(factor * 2),
+        repeticiones: Math.max(1, Math.floor(factor * 3)),
       },
     ];
 
@@ -329,6 +386,7 @@ async function main() {
     const porFuente: Record<string, number> = {
       APRENDIZAJE: 0,
       KPIS: 0,
+      TAREAS_OPERATIVAS: 0,
       COMPROMISOS: 0,
       RECONOCIMIENTOS: 0,
       MISIONES: 0,
@@ -341,11 +399,11 @@ async function main() {
     const total = Object.values(porFuente).reduce((a, b) => a + b, 0);
     const rango =
       total >= 1800
-        ? "DIAMANTE"
+        ? "SIDERAL"
         : total >= 1400
-          ? "ORO"
+          ? "DIAMANTE"
           : total >= 800
-            ? "PLATA"
+            ? "ORO"
             : "BRONCE";
 
     await prisma.rangoMensual.upsert({
@@ -363,6 +421,7 @@ async function main() {
         puntosTotales: total,
         puntosKpis: porFuente.KPIS,
         puntosCursos: porFuente.APRENDIZAJE,
+        puntosTareasOperativas: porFuente.TAREAS_OPERATIVAS,
         puntosCompromisos: porFuente.COMPROMISOS,
         puntosReconocimientos: porFuente.RECONOCIMIENTOS,
         puntosMisiones: porFuente.MISIONES,
@@ -374,6 +433,7 @@ async function main() {
         puntosTotales: total,
         puntosKpis: porFuente.KPIS,
         puntosCursos: porFuente.APRENDIZAJE,
+        puntosTareasOperativas: porFuente.TAREAS_OPERATIVAS,
         puntosCompromisos: porFuente.COMPROMISOS,
         puntosReconocimientos: porFuente.RECONOCIMIENTOS,
         puntosMisiones: porFuente.MISIONES,

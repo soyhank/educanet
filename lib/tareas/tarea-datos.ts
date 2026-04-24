@@ -66,4 +66,9 @@ export function datosTarea(tarea: TareaConDatos) {
   };
 }
 
-export const TOPE_MENSUAL_COMPROMISOS = 200;
+/**
+ * Tope mensual que aplica al workflow del Prompt 18 (tareas estructuradas
+ * del rol). Está desacoplado del tope de COMPROMISOS voluntarios (módulo 16B)
+ * que es independiente y menor.
+ */
+export const TOPE_MENSUAL_TAREAS_OPERATIVAS = 400;

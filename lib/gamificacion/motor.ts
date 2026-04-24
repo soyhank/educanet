@@ -45,6 +45,7 @@ const MAPA_TIPO_RAZON: Partial<Record<TipoEventoGamificacion, RazonPuntos>> = {
   KPIS_MES_TOTAL: "LOGRO_OBJETIVO",
   KPI_HITO_APROBADO: "LOGRO_OBJETIVO",
   COMPROMISO_CUMPLIDO: "LOGRO_OBJETIVO",
+  TAREA_OPERATIVA_COMPLETADA: "LOGRO_OBJETIVO",
   RECONOCIMIENTO_RECIBIDO: "LOGRO_OBJETIVO",
   MISION_COMPLETADA: "LOGRO_OBJETIVO",
   BONUS_EQUIPO: "LOGRO_OBJETIVO",
@@ -66,6 +67,7 @@ function descripcionDefault(ev: EventoInput): string {
     KPIS_MES_TOTAL: "Cierre de KPIs del mes",
     KPI_HITO_APROBADO: "Hito KPI validado por tu jefe",
     COMPROMISO_CUMPLIDO: "Compromiso cumplido",
+    TAREA_OPERATIVA_COMPLETADA: "Tarea operativa completada",
     RECONOCIMIENTO_RECIBIDO: "Reconocimiento recibido",
     MISION_COMPLETADA: "Mision completada",
     BONUS_EQUIPO: "Bonus de equipo",
@@ -74,13 +76,32 @@ function descripcionDefault(ev: EventoInput): string {
   return mapa[ev.tipo];
 }
 
+const MENSAJES_SUBIDA_RANGO: Record<string, { titulo: string; mensaje: string }> = {
+  ORO: {
+    titulo: "Subiste a Oro",
+    mensaje: "Tu desempeno se esta consolidando este mes. Segui asi.",
+  },
+  DIAMANTE: {
+    titulo: "Subiste a Diamante",
+    mensaje: "Excelencia sostenida. Sos una referencia para el equipo.",
+  },
+  SIDERAL: {
+    titulo: "Alcanzaste Sideral",
+    mensaje: "El rango mas alto del mes. Estas en la cima — un logro excepcional.",
+  },
+};
+
 async function crearNotificacionSubidaRango(userId: string, rango: string) {
+  const copy = MENSAJES_SUBIDA_RANGO[rango] ?? {
+    titulo: `Subiste a rango ${rango}`,
+    mensaje: "Tu desempeno del mes te llevo a un nuevo rango. Segui asi.",
+  };
   await prisma.notificacion.create({
     data: {
       userId,
       tipo: "LOGRO",
-      titulo: `Subiste a rango ${rango}!`,
-      mensaje: "Tu desempeno del mes te llevo a un nuevo rango. Sigue asi.",
+      titulo: copy.titulo,
+      mensaje: copy.mensaje,
       url: "/mi-progreso",
     },
   });

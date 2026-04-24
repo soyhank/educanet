@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { requireAuth } from "@/lib/auth";
-import { esJefeDelArea, obtenerProyeccionMesUsuario } from "@/lib/tareas/helpers";
+import { esJefeDelArea, obtenerProyeccionMesUsuario, TOPE_MENSUAL_TAREAS_OPERATIVAS } from "@/lib/tareas/helpers";
 import { mesActual } from "@/lib/gamificacion/periodo";
 import {
   obtenerAdHocsPendientesValidacion,
@@ -72,7 +72,7 @@ export default async function MiembroDetallePage({
         <CardContent className="flex flex-wrap items-center justify-between gap-6 p-5">
           <VelocimetroMini
             puntos={proyeccion.puntosOtorgadosReales}
-            tope={200}
+            tope={TOPE_MENSUAL_TAREAS_OPERATIVAS}
           />
           <div className="flex-1 space-y-2 text-sm">
             <div className="flex justify-between gap-4">
@@ -97,7 +97,7 @@ export default async function MiembroDetallePage({
               <div className="rounded-md bg-primary/10 p-2 text-xs text-primary">
                 Prorrateo activo: las tareas se otorgan con factor{" "}
                 <strong>× {proyeccion.factor.toFixed(2)}</strong> para no pasar
-                el tope de 200 pts/mes.
+                el tope de {TOPE_MENSUAL_TAREAS_OPERATIVAS} pts/mes.
               </div>
             )}
           </div>

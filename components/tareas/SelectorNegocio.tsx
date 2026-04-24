@@ -29,10 +29,15 @@ export function SelectorNegocio({
     >
       <SelectTrigger id={id}>
         <SelectValue placeholder={placeholder}>
-          {info && (
+          {info ? (
             <span className="flex items-center gap-2">
               <span className={`h-2 w-2 rounded-full ${info.dotClass}`} />
               {info.label}
+            </span>
+          ) : (
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+              Sin asignar
             </span>
           )}
         </SelectValue>

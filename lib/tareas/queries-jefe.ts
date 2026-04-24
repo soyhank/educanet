@@ -3,7 +3,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { rangoMes } from "@/lib/gamificacion/periodo";
-import { TOPE_MENSUAL_COMPROMISOS, obtenerProyeccionMesUsuario } from "./helpers";
+import { TOPE_MENSUAL_TAREAS_OPERATIVAS, obtenerProyeccionMesUsuario } from "./helpers";
 
 /**
  * Estado general del equipo: un row por miembro con puntos acumulados,
@@ -32,6 +32,25 @@ export async function obtenerPanelEquipoJefe(params: {
   const filas = await Promise.all(
     miembros.map(async (m) => {
       const proyeccion = await obtenerProyeccionMesUsuario(m.id);
+
+      // Totales por fuente TAREAS_OPERATIVAS y COMPROMISOS (para ratio
+      // iniciativa/ejecución que se muestra al jefe).
+      const puntosPorFuenteMes = await prisma.eventoGamificacion.groupBy({
+        by: ["fuente"],
+        where: {
+          userId: m.id,
+          fuente: { in: ["TAREAS_OPERATIVAS", "COMPROMISOS"] },
+          mesPeriodo: params.mes,
+          anioPeriodo: params.anio,
+        },
+        _sum: { cantidad: true },
+      });
+      const puntosTareasOperativas =
+        puntosPorFuenteMes.find((p) => p.fuente === "TAREAS_OPERATIVAS")?._sum
+          .cantidad ?? 0;
+      const puntosCompromisos =
+        puntosPorFuenteMes.find((p) => p.fuente === "COMPROMISOS")?._sum
+          .cantidad ?? 0;
 
       const [tareasAgg, rangoMes, adHocPorValidar, bloqueadas, vencidas] =
         await Promise.all([
@@ -96,7 +115,9 @@ export async function obtenerPanelEquipoJefe(params: {
         puestoNombre: m.puesto?.nombre ?? "Sin puesto",
         avatarUrl: m.avatarUrl,
         puntosOtorgadosReales: puntosEjePrograma,
-        topePuntos: TOPE_MENSUAL_COMPROMISOS,
+        topePuntos: TOPE_MENSUAL_TAREAS_OPERATIVAS,
+        puntosTareasOperativas,
+        puntosCompromisos,
         acumuladoBruto: proyeccion.acumuladoBruto,
         proyectadoPendiente: proyeccion.proyectadoPendiente,
         totalProyectado: proyeccion.totalProyectado,

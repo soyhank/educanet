@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -9,6 +9,8 @@ import {
   Info,
   Pause,
   Play,
+  Plus,
+  Trash2,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -38,11 +40,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
+  agregarItemChecklistAdHoc,
   completarTarea,
   desbloquearTarea,
   editarChecklistItemTexto,
   editarTareaInstancia,
+  eliminarItemChecklistAdHoc,
   iniciarTarea,
+  marcarChecklistAdHocItem,
   marcarChecklistItem,
   reportarBloqueoExterno,
 } from "@/lib/tareas/actions";
@@ -55,7 +60,10 @@ import {
   InlineText,
   InlineTextarea,
 } from "./InlineEditable";
+import { CheckSquare, Square } from "lucide-react";
 import type { Negocio, Prisma } from "@prisma/client";
+
+type ChecklistAdHocItem = { texto: string; marcado: boolean };
 
 type TareaDetalle = Prisma.TareaInstanciaGetPayload<{
   include: {
@@ -326,6 +334,8 @@ export function DetalleTareaClient({
             </CardContent>
           </Card>
           )}
+
+          <ChecklistAdHoc tarea={tarea} />
         </div>
 
         <aside className="space-y-4">
@@ -370,36 +380,21 @@ export function DetalleTareaClient({
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Puntos base
+                  Puntos estimados
                 </p>
                 <p className="mt-1 text-lg font-semibold tabular-nums">
-                  {datos.esAdHoc ? (
-                    <InlineNumber
-                      value={datos.puntosBase}
-                      min={1}
-                      max={20}
-                      suffix=" pts"
-                      onSave={(nuevo) =>
-                        editarTareaInstancia({
-                          tareaId: tarea.id,
-                          puntosBaseAdHoc: nuevo,
-                        })
-                      }
-                    />
-                  ) : (
-                    `${datos.puntosBase} pts`
-                  )}
+                  {datos.puntosBase} pts
                 </p>
-                {datos.bonusATiempo > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    +{datos.bonusATiempo} si completás a tiempo
-                  </p>
-                )}
-                {datos.bonusDesbloqueo > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    +{datos.bonusDesbloqueo} si desbloqueás a otros
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  {datos.esAdHoc
+                    ? "El jefe ajusta al validar"
+                    : [
+                        datos.bonusATiempo > 0 && `+${datos.bonusATiempo} a tiempo`,
+                        datos.bonusDesbloqueo > 0 && `+${datos.bonusDesbloqueo} desbloqueando`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || null}
+                </p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -573,6 +568,148 @@ function ModalBloqueo({ tareaId }: { tareaId: string }) {
   );
 }
 
+function ChecklistAdHoc({ tarea }: { tarea: TareaDetalle }) {
+  const router = useRouter();
+  const [nuevoTexto, setNuevoTexto] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [localItems, setLocalItems] = useState<ChecklistAdHocItem[]>(
+    (tarea.checklistAdHoc as ChecklistAdHocItem[] | null) ?? []
+  );
+  const [isPending, startTransition] = useTransition();
+
+  // Solo aplica a tareas ad-hoc
+  if (tarea.catalogoTareaId) return null;
+
+  const cerrada = tarea.estado === "COMPLETADA" || tarea.estado === "OMITIDA";
+
+  const marcados = localItems.filter((i) => i.marcado).length;
+  const progreso = localItems.length > 0 ? Math.round((marcados / localItems.length) * 100) : 0;
+
+  const toggle = (indice: number, marcado: boolean) => {
+    // Optimistic: update immediately, sync server in background — no router.refresh()
+    setLocalItems(prev => prev.map((item, i) => i === indice ? { ...item, marcado } : item));
+    void marcarChecklistAdHocItem({ tareaId: tarea.id, indice, marcado }).then(res => {
+      if (!res.success) {
+        setLocalItems(prev => prev.map((item, i) => i === indice ? { ...item, marcado: !marcado } : item));
+        toast.error(res.error ?? "Error");
+      }
+    });
+  };
+
+  const agregar = () => {
+    const texto = nuevoTexto.trim();
+    if (!texto) return;
+    setNuevoTexto("");
+    setLocalItems(prev => [...prev, { texto, marcado: false }]);
+    startTransition(async () => {
+      const res = await agregarItemChecklistAdHoc({ tareaId: tarea.id, texto });
+      if (!res.success) {
+        setLocalItems(prev => prev.slice(0, -1));
+        toast.error(res.error ?? "Error");
+      } else {
+        router.refresh();
+        inputRef.current?.focus();
+      }
+    });
+  };
+
+  const eliminar = (indice: number) => {
+    const removed = localItems[indice];
+    setLocalItems(prev => prev.filter((_, i) => i !== indice));
+    startTransition(async () => {
+      const res = await eliminarItemChecklistAdHoc({ tareaId: tarea.id, indice });
+      if (!res.success) {
+        setLocalItems(prev => [...prev.slice(0, indice), removed, ...prev.slice(indice)]);
+        toast.error(res.error ?? "Error");
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="text-base">Checklist</CardTitle>
+        {localItems.length > 0 && (
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {marcados}/{localItems.length} completados
+          </span>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {localItems.length > 0 && <Progress value={progreso} />}
+
+        {localItems.length > 0 && (
+          <ul className="space-y-2">
+            {localItems.map((item, i) => (
+              <li key={i} className="flex items-start gap-3 rounded-lg border p-3">
+                <button
+                  type="button"
+                  disabled={cerrada}
+                  onClick={() => toggle(i, !item.marcado)}
+                  className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                  aria-label={item.marcado ? "Desmarcar" : "Marcar completado"}
+                >
+                  {item.marcado ? (
+                    <CheckSquare className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Square className="h-4 w-4" />
+                  )}
+                </button>
+                <span
+                  className={`flex-1 text-sm leading-snug ${item.marcado ? "line-through text-muted-foreground" : ""}`}
+                >
+                  {item.texto}
+                </span>
+                {!cerrada && (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => eliminar(i)}
+                    className="mt-0.5 shrink-0 text-muted-foreground/40 hover:text-destructive transition-colors disabled:opacity-40"
+                    aria-label="Eliminar paso"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {!cerrada && (
+          <div className="flex gap-2 pt-1">
+            <Input
+              ref={inputRef}
+              placeholder={localItems.length === 0 ? "Agregar primer paso…" : "Agregar paso…"}
+              value={nuevoTexto}
+              onChange={(e) => setNuevoTexto(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  agregar();
+                }
+              }}
+              disabled={isPending}
+              className="text-sm"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={agregar}
+              disabled={!nuevoTexto.trim() || isPending}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ModalCompletar({
   tarea,
   companeros,
@@ -660,7 +797,12 @@ function ModalCompletar({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        {/* form is a direct grid child — scrollable fields, no footer inside */}
+        <form
+          id="completar-form"
+          onSubmit={onSubmit}
+          className="max-h-[52vh] overflow-y-auto space-y-4 py-1 pr-1"
+        >
           <div className="space-y-2">
             <Label htmlFor="tiempo">Tiempo invertido (minutos)</Label>
             <Input
@@ -754,28 +896,30 @@ function ModalCompletar({
               </div>
             )}
           </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-              disabled={isPending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={
-                isPending ||
-                !checklistListo ||
-                (ayudaToggle && (!ayudaEjecutorId || !ayudaMotivo.trim()))
-              }
-            >
-              {isPending ? "Completando…" : "Confirmar completada"}
-            </Button>
-          </DialogFooter>
         </form>
+
+        {/* footer is a direct grid child — always visible, negative margins work correctly */}
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="completar-form"
+            disabled={
+              isPending ||
+              !checklistListo ||
+              (ayudaToggle && (!ayudaEjecutorId || !ayudaMotivo.trim()))
+            }
+          >
+            {isPending ? "Completando…" : "Confirmar completada"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

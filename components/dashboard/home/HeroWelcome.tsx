@@ -36,9 +36,9 @@ interface HeroWelcomeProps {
 
 const LABEL_RANGO: Record<TipoRango, string> = {
   BRONCE: "Bronce",
-  PLATA: "Plata",
   ORO: "Oro",
   DIAMANTE: "Diamante",
+  SIDERAL: "Sideral",
 };
 
 export function HeroWelcome({ user, stats }: HeroWelcomeProps) {

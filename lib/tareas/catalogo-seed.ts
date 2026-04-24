@@ -8,7 +8,7 @@
  * mapea en el seed contra `prisma.puesto.findFirst({ where: { nombre: ... } })`.
  *
  * Puntos base están calibrados para que un ejecutor nominal completando sus
- * tareas del mes alcance cerca de 200 pts COMPROMISOS (el tope), sin
+ * tareas del mes alcance cerca de 350 pts TAREAS_OPERATIVAS (el tope), sin
  * pasarse. Aprox: Asistente Eventos = 1 workflow webinar ≈ 130 pts base +
  * 20 bonus, + SEO recurrentes del mes.
  */

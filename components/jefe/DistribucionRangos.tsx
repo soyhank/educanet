@@ -1,4 +1,4 @@
-import { Medal, Award, Trophy, Gem } from "lucide-react";
+import { Medal, Trophy, Gem, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TipoRango } from "@prisma/client";
 
@@ -12,12 +12,6 @@ const RANGO_COLOR: Record<
     text: "text-amber-900 dark:text-amber-200",
     label: "Bronce",
   },
-  PLATA: {
-    icono: Award,
-    bg: "bg-slate-400/30",
-    text: "text-slate-800 dark:text-slate-200",
-    label: "Plata",
-  },
   ORO: {
     icono: Trophy,
     bg: "bg-amber-400/30",
@@ -30,6 +24,12 @@ const RANGO_COLOR: Record<
     text: "text-cyan-900 dark:text-cyan-100",
     label: "Diamante",
   },
+  SIDERAL: {
+    icono: Sparkles,
+    bg: "bg-violet-500/25",
+    text: "text-violet-900 dark:text-violet-100",
+    label: "Sideral",
+  },
 };
 
 export function DistribucionRangos({
@@ -39,7 +39,7 @@ export function DistribucionRangos({
   distribucion: Record<TipoRango, number>;
   total: number;
 }) {
-  const orden: TipoRango[] = ["BRONCE", "PLATA", "ORO", "DIAMANTE"];
+  const orden: TipoRango[] = ["BRONCE", "ORO", "DIAMANTE", "SIDERAL"];
 
   return (
     <div className="rounded-xl border bg-card p-5">

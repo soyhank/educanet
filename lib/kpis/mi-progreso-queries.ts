@@ -37,9 +37,11 @@ export type ProgresoMes = {
 const FUENTES_VISIBLES: FuenteXP[] = [
   "KPIS",
   "APRENDIZAJE",
+  "TAREAS_OPERATIVAS",
   "COMPROMISOS",
   "RECONOCIMIENTOS",
   "MISIONES",
+  "EQUIPO",
 ];
 
 export async function obtenerProgresoMes(

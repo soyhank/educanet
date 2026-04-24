@@ -55,11 +55,17 @@ export async function reportarKpiSemanal(input: {
       valor: input.valor,
       comentario: input.comentario ?? null,
       reportadoPorId: user.id,
+      estadoValidacion: "PENDIENTE",
     },
     update: {
       valor: input.valor,
       comentario: input.comentario ?? null,
       reportadoPorId: user.id,
+      // Reset a PENDIENTE si el empleado corrige su reporte
+      estadoValidacion: "PENDIENTE",
+      validadoPorId: null,
+      validadoEn: null,
+      rechazoMotivo: null,
     },
   });
 
@@ -132,7 +138,12 @@ export async function cerrarMesKpis(input: {
   for (const c of cumplimiento.cumplimientos) {
     const asig = await prisma.kpiAsignacion.findUnique({
       where: { id: c.asignacionId },
-      include: { definicion: true, registros: true },
+      include: {
+        definicion: true,
+        registros: {
+          where: { estadoValidacion: { in: ["VALIDADO", "AUTO_VALIDADO"] } },
+        },
+      },
     });
     if (!asig) continue;
 
@@ -265,5 +276,117 @@ export async function eliminarDefinicionKpi(id: string): Promise<Result> {
     };
   }
   revalidatePath("/admin/kpis");
+  return { success: true };
+}
+
+export async function validarRegistroKpi(params: {
+  registroId: string;
+  aprobar: boolean;
+  comentario?: string;
+  valorCorregido?: number;
+}): Promise<Result> {
+  const user = await requireAuth();
+
+  const registro = await prisma.kpiRegistroSemanal.findUnique({
+    where: { id: params.registroId },
+    include: { asignacion: { include: { user: true } } },
+  });
+  if (!registro) return { success: false, error: "Registro no encontrado" };
+
+  const { verificarEsJefeDe } = await import("./jerarquia");
+  const esJefe = await verificarEsJefeDe(user.id, registro.asignacion.userId);
+  const esAdmin = user.rol === "ADMIN" || user.rol === "RRHH";
+
+  if (!esJefe && !esAdmin) {
+    return { success: false, error: "Solo el jefe puede validar este KPI" };
+  }
+
+  const valorFinal = params.valorCorregido ?? registro.valor;
+
+  await prisma.kpiRegistroSemanal.update({
+    where: { id: params.registroId },
+    data: {
+      valor: valorFinal,
+      estadoValidacion: params.aprobar ? "VALIDADO" : "RECHAZADO",
+      validadoPorId: user.id,
+      validadoEn: new Date(),
+      comentarioValidacion: params.comentario ?? null,
+      rechazoMotivo: !params.aprobar ? (params.comentario ?? null) : null,
+    },
+  });
+
+  await prisma.notificacion.create({
+    data: {
+      userId: registro.asignacion.userId,
+      tipo: "SISTEMA",
+      titulo: params.aprobar ? "KPI validado" : "KPI rechazado",
+      mensaje: params.aprobar
+        ? `Tu reporte fue validado${params.valorCorregido !== undefined ? " (valor ajustado)" : ""}`
+        : `Motivo: ${params.comentario ?? "sin comentario"}`,
+      url: "/mi-progreso/kpis",
+    },
+  });
+
+  revalidatePath("/mi-equipo/kpis");
+  revalidatePath("/mi-progreso/kpis");
+
+  return { success: true };
+}
+
+export async function reportarKpiPorJefe(params: {
+  asignacionId: string;
+  semana: number;
+  anio: number;
+  valor: number;
+  comentario?: string;
+}): Promise<Result> {
+  const user = await requireAuth();
+
+  const asignacion = await prisma.kpiAsignacion.findUnique({
+    where: { id: params.asignacionId },
+    include: { definicion: true },
+  });
+  if (!asignacion) return { success: false, error: "Asignacion no encontrada" };
+
+  if (asignacion.definicion.tipoFuente !== "EVALUADO_POR_JEFE") {
+    return { success: false, error: "Este KPI no es evaluado por jefe" };
+  }
+
+  const { verificarEsJefeDe } = await import("./jerarquia");
+  const esJefe = await verificarEsJefeDe(user.id, asignacion.userId);
+  if (!esJefe && user.rol !== "ADMIN" && user.rol !== "RRHH") {
+    return { success: false, error: "Solo el jefe puede reportar este KPI" };
+  }
+
+  await prisma.kpiRegistroSemanal.upsert({
+    where: {
+      asignacionId_semanaDelAnio_anio: {
+        asignacionId: params.asignacionId,
+        semanaDelAnio: params.semana,
+        anio: params.anio,
+      },
+    },
+    create: {
+      asignacionId: params.asignacionId,
+      semanaDelAnio: params.semana,
+      anio: params.anio,
+      valor: params.valor,
+      comentario: params.comentario ?? null,
+      reportadoPorId: user.id,
+      estadoValidacion: "VALIDADO",
+      validadoPorId: user.id,
+      validadoEn: new Date(),
+    },
+    update: {
+      valor: params.valor,
+      comentario: params.comentario ?? null,
+      reportadoPorId: user.id,
+      estadoValidacion: "VALIDADO",
+      validadoPorId: user.id,
+      validadoEn: new Date(),
+    },
+  });
+
+  revalidatePath("/mi-equipo/kpis");
   return { success: true };
 }

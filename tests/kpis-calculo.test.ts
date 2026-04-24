@@ -13,6 +13,13 @@ function reg(semana: number, valor: number) {
     valor,
     comentario: null,
     reportadoPorId: "u1",
+    estadoValidacion: "VALIDADO" as const,
+    validadoPorId: null,
+    validadoEn: null,
+    comentarioValidacion: null,
+    rechazoMotivo: null,
+    calculoAutomatico: false,
+    snapshotDataFuente: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

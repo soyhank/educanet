@@ -68,7 +68,12 @@ export async function calcularCumplimientoKpis(params: {
       periodoMes: params.mes,
       periodoAnio: params.anio,
     },
-    include: { definicion: true, registros: true },
+    include: {
+      definicion: true,
+      registros: {
+        where: { estadoValidacion: { in: ["VALIDADO", "AUTO_VALIDADO"] } },
+      },
+    },
   });
 
   if (asignaciones.length === 0) {

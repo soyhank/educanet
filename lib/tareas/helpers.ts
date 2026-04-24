@@ -7,19 +7,16 @@ import { rangoMes, mesActual } from "@/lib/gamificacion/periodo";
 
 // Re-export las funciones puras para que server-only consumers puedan seguir
 // importando desde "./helpers" como antes.
-export { datosTarea, TOPE_MENSUAL_COMPROMISOS } from "./tarea-datos";
-import { TOPE_MENSUAL_COMPROMISOS } from "./tarea-datos";
+export { datosTarea, TOPE_MENSUAL_TAREAS_OPERATIVAS } from "./tarea-datos";
+import { TOPE_MENSUAL_TAREAS_OPERATIVAS } from "./tarea-datos";
 
 /**
  * Prorrateo de puntos (opción B): si la proyección del mes (acumulado +
- * esta tarea + pendientes restantes del mes) excede el tope, se escalan
- * proporcionalmente para que el total llegue al tope.
+ * esta tarea + pendientes restantes del mes) excede el tope de
+ * TAREAS_OPERATIVAS (350), se escalan proporcionalmente para que el total
+ * llegue al tope.
  *
- * Ej: usuario ya recibió 100 pts, tiene 3 tareas pendientes de 50 pts
- * cada una, y está completando una de 50. Proyección = 100 + 50 + 150 =
- * 300 > 200. Factor = 200/300 = 0.666. Otorga 50 × 0.666 = 33 pts.
- *
- * Nota: el motor seguirá aplicando el tope duro de 200 como último
+ * Nota: el motor seguirá aplicando el tope duro de 350 como último
  * recurso, así que este cálculo es una optimización para que ningún día
  * se otorgue "demasiado" anticipadamente.
  */
@@ -35,7 +32,7 @@ export async function calcularPuntosProrrateados(
   const eventos = await prisma.eventoGamificacion.aggregate({
     where: {
       userId,
-      fuente: "COMPROMISOS",
+      fuente: "TAREAS_OPERATIVAS",
       createdAt: { gte: inicio, lte: fin },
     },
     _sum: { cantidadBruta: true },
@@ -63,7 +60,7 @@ export async function calcularPuntosProrrateados(
 
   const totalProyectado = acumuladoBruto + puntosBaseTarea + proyectadoPendiente;
 
-  if (totalProyectado <= TOPE_MENSUAL_COMPROMISOS) {
+  if (totalProyectado <= TOPE_MENSUAL_TAREAS_OPERATIVAS) {
     return {
       puntosProrrateados: puntosBaseTarea,
       factorProrrateo: 1,
@@ -71,7 +68,7 @@ export async function calcularPuntosProrrateados(
     };
   }
 
-  const factor = TOPE_MENSUAL_COMPROMISOS / totalProyectado;
+  const factor = TOPE_MENSUAL_TAREAS_OPERATIVAS / totalProyectado;
   return {
     puntosProrrateados: Math.max(1, Math.floor(puntosBaseTarea * factor)),
     factorProrrateo: Number(factor.toFixed(3)),
@@ -96,7 +93,7 @@ export async function obtenerProyeccionMesUsuario(userId: string): Promise<{
   const eventosBruto = await prisma.eventoGamificacion.aggregate({
     where: {
       userId,
-      fuente: "COMPROMISOS",
+      fuente: "TAREAS_OPERATIVAS",
       createdAt: { gte: inicio, lte: fin },
     },
     _sum: { cantidadBruta: true, cantidad: true },
@@ -122,8 +119,8 @@ export async function obtenerProyeccionMesUsuario(userId: string): Promise<{
 
   const totalProyectado = acumuladoBruto + proyectadoPendiente;
   const factor =
-    totalProyectado > TOPE_MENSUAL_COMPROMISOS
-      ? TOPE_MENSUAL_COMPROMISOS / totalProyectado
+    totalProyectado > TOPE_MENSUAL_TAREAS_OPERATIVAS
+      ? TOPE_MENSUAL_TAREAS_OPERATIVAS / totalProyectado
       : 1;
 
   return {

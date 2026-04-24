@@ -427,11 +427,13 @@ export async function completarTarea(input: {
       },
     });
 
-    // Motor central
+    // Motor central: el workflow del Prompt 18 cuenta como TAREAS_OPERATIVAS
+    // (cumplimiento del rol estándar). Compromisos voluntarios (módulo 16B)
+    // siguen en la fuente COMPROMISOS con su tope independiente.
     await procesarEvento({
       userId: receptorPuntos,
-      tipo: "COMPROMISO_CUMPLIDO",
-      fuente: "COMPROMISOS",
+      tipo: "TAREA_OPERATIVA_COMPLETADA",
+      fuente: "TAREAS_OPERATIVAS",
       puntosBrutos: puntosProrrateados,
       metadatos: {
         origen: "tarea_operativa",
@@ -602,26 +604,26 @@ export async function asignarTareaDirecta(input: {
 // ============================================================================
 // Nueva API para empleado: crear tarea ad-hoc propia (requiere validación)
 // ============================================================================
+/** 1 pto por cada 6 min promedio, mínimo 1, máximo 20. */
+function calcularPuntosAdHoc(tiempoMin: number, tiempoMax: number): number {
+  const promedio = (tiempoMin + tiempoMax) / 2;
+  return Math.min(20, Math.max(1, Math.round(promedio / 6)));
+}
+
 export async function crearTareaAdHoc(input: {
   nombre: string;
   descripcion?: string;
-  puntosBaseAdHoc: number;
   tiempoEstimadoMinAdHoc: number;
   tiempoEstimadoMaxAdHoc: number;
   negocio?: import("@prisma/client").Negocio | null;
+  checklistAdHoc?: string[];
   fechaEstimadaInicio?: Date;
-}): Promise<Result<{ tareaId: string }>> {
+}): Promise<Result<{ tareaId: string; puntosAsignados: number }>> {
   try {
     const user = await requireAuth();
 
     if (!input.nombre.trim()) {
       return { success: false, error: "El nombre es obligatorio" };
-    }
-    if (input.puntosBaseAdHoc < 1 || input.puntosBaseAdHoc > 20) {
-      return {
-        success: false,
-        error: "Puntos base entre 1 y 20 (las ad-hoc tienen tope menor)",
-      };
     }
     if (
       input.tiempoEstimadoMinAdHoc < 1 ||
@@ -629,6 +631,18 @@ export async function crearTareaAdHoc(input: {
     ) {
       return { success: false, error: "Tiempo estimado inválido" };
     }
+
+    const puntosBaseAdHoc = calcularPuntosAdHoc(
+      input.tiempoEstimadoMinAdHoc,
+      input.tiempoEstimadoMaxAdHoc,
+    );
+
+    const checklistJson =
+      input.checklistAdHoc && input.checklistAdHoc.length > 0
+        ? input.checklistAdHoc
+            .filter((t) => t.trim())
+            .map((texto) => ({ texto: texto.trim(), marcado: false }))
+        : null;
 
     const inicio = input.fechaEstimadaInicio ?? new Date();
     const fin = addMinutes(inicio, input.tiempoEstimadoMaxAdHoc);
@@ -641,10 +655,11 @@ export async function crearTareaAdHoc(input: {
         workflowInstanciaId: null,
         nombreAdHoc: input.nombre.trim(),
         descripcionAdHoc: input.descripcion?.trim() || null,
-        puntosBaseAdHoc: input.puntosBaseAdHoc,
+        puntosBaseAdHoc,
         tiempoEstimadoMinAdHoc: input.tiempoEstimadoMinAdHoc,
         tiempoEstimadoMaxAdHoc: input.tiempoEstimadoMaxAdHoc,
         negocio: input.negocio ?? null,
+        checklistAdHoc: checklistJson ?? undefined,
         fechaEstimadaInicio: inicio,
         fechaEstimadaFin: fin,
         estado: "PENDIENTE",
@@ -667,7 +682,7 @@ export async function crearTareaAdHoc(input: {
             userId: jefe.id,
             tipo: "SISTEMA",
             titulo: "Nueva tarea auto-asignada",
-            mensaje: `${user.nombre} creó la tarea "${input.nombre.trim()}" (${input.puntosBaseAdHoc} pts). Revisá cuando se complete.`,
+            mensaje: `${user.nombre} registró "${input.nombre.trim()}" (~${puntosBaseAdHoc} pts estimados). Revisá cuando se complete.`,
             url: `/mi-equipo/${user.id}`,
           },
         });
@@ -676,7 +691,111 @@ export async function crearTareaAdHoc(input: {
 
     revalidatePath("/tareas");
     revalidatePath("/mi-equipo");
-    return { success: true, data: { tareaId: nueva.id } };
+    return { success: true, data: { tareaId: nueva.id, puntosAsignados: puntosBaseAdHoc } };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
+}
+
+export async function marcarChecklistAdHocItem(input: {
+  tareaId: string;
+  indice: number;
+  marcado: boolean;
+}): Promise<Result<void>> {
+  try {
+    const user = await requireAuth();
+    const tarea = await prisma.tareaInstancia.findUnique({
+      where: { id: input.tareaId },
+      select: { asignadoAId: true, checklistAdHoc: true, estado: true },
+    });
+    if (!tarea) return { success: false, error: "Tarea no encontrada" };
+    if (tarea.asignadoAId !== user.id)
+      return { success: false, error: "Sin permiso" };
+    if (tarea.estado === "COMPLETADA" || tarea.estado === "OMITIDA")
+      return { success: false, error: "La tarea ya está cerrada" };
+
+    const items = (tarea.checklistAdHoc as Array<{ texto: string; marcado: boolean }> | null) ?? [];
+    if (input.indice < 0 || input.indice >= items.length)
+      return { success: false, error: "Ítem no encontrado" };
+
+    const updated = items.map((item, i) =>
+      i === input.indice ? { ...item, marcado: input.marcado } : item,
+    );
+
+    await prisma.tareaInstancia.update({
+      where: { id: input.tareaId },
+      data: { checklistAdHoc: updated },
+    });
+
+    revalidatePath(`/tareas/${input.tareaId}`);
+    return { success: true, data: undefined };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
+}
+
+export async function agregarItemChecklistAdHoc(input: {
+  tareaId: string;
+  texto: string;
+}): Promise<Result<void>> {
+  try {
+    const user = await requireAuth();
+    const texto = input.texto.trim();
+    if (!texto) return { success: false, error: "El texto no puede estar vacío" };
+
+    const tarea = await prisma.tareaInstancia.findUnique({
+      where: { id: input.tareaId },
+      select: { asignadoAId: true, checklistAdHoc: true, estado: true, catalogoTareaId: true },
+    });
+    if (!tarea) return { success: false, error: "Tarea no encontrada" };
+    if (tarea.asignadoAId !== user.id)
+      return { success: false, error: "Sin permiso" };
+    if (tarea.catalogoTareaId)
+      return { success: false, error: "Solo en tareas ad-hoc" };
+    if (tarea.estado === "COMPLETADA" || tarea.estado === "OMITIDA")
+      return { success: false, error: "La tarea ya está cerrada" };
+
+    const items = (tarea.checklistAdHoc as Array<{ texto: string; marcado: boolean }> | null) ?? [];
+    const updated = [...items, { texto, marcado: false }];
+
+    await prisma.tareaInstancia.update({
+      where: { id: input.tareaId },
+      data: { checklistAdHoc: updated },
+    });
+
+    revalidatePath(`/tareas/${input.tareaId}`);
+    return { success: true, data: undefined };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
+}
+
+export async function eliminarItemChecklistAdHoc(input: {
+  tareaId: string;
+  indice: number;
+}): Promise<Result<void>> {
+  try {
+    const user = await requireAuth();
+    const tarea = await prisma.tareaInstancia.findUnique({
+      where: { id: input.tareaId },
+      select: { asignadoAId: true, checklistAdHoc: true, estado: true },
+    });
+    if (!tarea) return { success: false, error: "Tarea no encontrada" };
+    if (tarea.asignadoAId !== user.id)
+      return { success: false, error: "Sin permiso" };
+    if (tarea.estado === "COMPLETADA" || tarea.estado === "OMITIDA")
+      return { success: false, error: "La tarea ya está cerrada" };
+
+    const items = (tarea.checklistAdHoc as Array<{ texto: string; marcado: boolean }> | null) ?? [];
+    const updated = items.filter((_, i) => i !== input.indice);
+
+    await prisma.tareaInstancia.update({
+      where: { id: input.tareaId },
+      data: { checklistAdHoc: updated },
+    });
+
+    revalidatePath(`/tareas/${input.tareaId}`);
+    return { success: true, data: undefined };
   } catch (e) {
     return { success: false, error: (e as Error).message };
   }
@@ -741,8 +860,8 @@ export async function validarTareaAdHoc(input: {
 
       await procesarEvento({
         userId: tarea.asignadoAId,
-        tipo: "COMPROMISO_CUMPLIDO",
-        fuente: "COMPROMISOS",
+        tipo: "TAREA_OPERATIVA_COMPLETADA",
+        fuente: "TAREAS_OPERATIVAS",
         puntosBrutos: puntosProrrateados,
         metadatos: {
           origen: "tarea_ad_hoc_validada",

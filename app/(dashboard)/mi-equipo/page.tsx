@@ -12,6 +12,10 @@ import {
 } from "@/lib/tareas/queries";
 import { obtenerPanelEquipoJefe } from "@/lib/tareas/queries-jefe";
 import { AvisoAnonimizado } from "@/components/jefe/AvisoAnonimizado";
+import {
+  CardRatioIniciativaEjecucion,
+  ComparativaPorMiembro,
+} from "@/components/jefe/RatioIniciativaEjecucion";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -19,6 +23,7 @@ import { HaloBackground } from "@/components/ui/primitives/HaloBackground";
 import { KineticTitle } from "@/components/ui/primitives/KineticTitle";
 import { VelocimetroMini } from "@/components/tareas/jefe/VelocimetroMini";
 import { ModalProgramarWorkflow } from "@/components/tareas/jefe/ModalProgramarWorkflow";
+import { TOPES_MENSUALES } from "@/lib/gamificacion/multiplicadores";
 
 export const metadata = { title: "Mi equipo" };
 
@@ -120,6 +125,18 @@ export default async function MiEquipoPage() {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Métrica de iniciativa del equipo + comparativa */}
+      {miembros.length > 0 && (
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,280px)_1fr]">
+          <CardRatioIniciativaEjecucion miembros={miembros} />
+          <ComparativaPorMiembro
+            miembros={miembros}
+            topeTareasOperativas={TOPES_MENSUALES.TAREAS_OPERATIVAS}
+            topeCompromisos={TOPES_MENSUALES.COMPROMISOS}
+          />
+        </section>
       )}
 
       {/* Grid de cards por miembro — protagonista */}

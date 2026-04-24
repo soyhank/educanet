@@ -6,9 +6,9 @@ import type { TipoRango } from "@prisma/client";
 
 const RANGO_BADGE: Record<TipoRango, string> = {
   BRONCE: "bg-amber-700/20 text-amber-900 dark:text-amber-200",
-  PLATA: "bg-slate-400/20 text-slate-800 dark:text-slate-200",
   ORO: "bg-amber-400/20 text-amber-900 dark:text-amber-100",
   DIAMANTE: "bg-cyan-400/20 text-cyan-900 dark:text-cyan-100",
+  SIDERAL: "bg-violet-500/20 text-violet-900 dark:text-violet-100",
 };
 
 type Miembro = {
