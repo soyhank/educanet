@@ -40,11 +40,13 @@ import { cn } from "@/lib/utils";
 import {
   completarTarea,
   desbloquearTarea,
+  editarChecklistItemTexto,
   editarTareaInstancia,
   iniciarTarea,
   marcarChecklistItem,
   reportarBloqueoExterno,
 } from "@/lib/tareas/actions";
+import { ChecklistItemRow } from "./ChecklistItemRow";
 import { datosTarea } from "@/lib/tareas/tarea-datos";
 import {
   InlineDate,
@@ -105,6 +107,13 @@ export function DetalleTareaClient({
     const m = new Map<string, boolean>();
     for (const marcado of tarea.checklistMarcados) {
       m.set(marcado.plantillaItemId, marcado.marcado);
+    }
+    return m;
+  }, [tarea.checklistMarcados]);
+  const overridesMap = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const x of tarea.checklistMarcados) {
+      m.set(x.plantillaItemId, x.descripcionOverride ?? null);
     }
     return m;
   }, [tarea.checklistMarcados]);
@@ -287,50 +296,29 @@ export function DetalleTareaClient({
               <Progress value={progreso} />
               <ul className="space-y-2">
                 {itemsOrdenados.map((item, idx) => {
-                  const marcado = marcadosMap.get(item.id) ?? false;
                   const disabled =
                     tarea.estado === "COMPLETADA" || tarea.estado === "OMITIDA";
                   return (
-                    <li key={item.id} className="flex items-start gap-3 rounded-lg border p-3">
-                      <button
-                        type="button"
+                    <li key={item.id} className="rounded-lg border p-3">
+                      <ChecklistItemRow
+                        itemPlantillaId={item.id}
+                        indice={idx + 1}
+                        descripcionOriginal={item.descripcion}
+                        descripcionOverride={overridesMap.get(item.id) ?? null}
+                        ayudaContextual={item.ayudaContextual}
+                        obligatorio={item.obligatorio}
+                        marcado={marcadosMap.get(item.id) ?? false}
                         disabled={disabled || isPending}
-                        onClick={() => onToggle(item.id, !marcado)}
-                        className={cn(
-                          "mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 transition-colors",
-                          marcado
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-muted-foreground/40 hover:border-primary",
-                          disabled && "cursor-not-allowed opacity-60",
-                        )}
-                        aria-label={marcado ? "Desmarcar paso" : "Marcar paso"}
-                      >
-                        {marcado && <CheckCircle2 className="h-3 w-3" />}
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className={cn(
-                            "text-sm",
-                            marcado && "text-muted-foreground line-through",
-                          )}
-                        >
-                          <span className="font-medium tabular-nums text-muted-foreground mr-2">
-                            {idx + 1}.
-                          </span>
-                          {item.descripcion}
-                          {!item.obligatorio && (
-                            <span className="ml-2 text-[10px] text-muted-foreground">
-                              (opcional)
-                            </span>
-                          )}
-                        </p>
-                        {item.ayudaContextual && (
-                          <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
-                            <Info className="mt-0.5 h-3 w-3 flex-shrink-0" />
-                            {item.ayudaContextual}
-                          </p>
-                        )}
-                      </div>
+                        onToggle={(nuevo) => onToggle(item.id, nuevo)}
+                        onEditarTexto={(nuevo) =>
+                          editarChecklistItemTexto({
+                            tareaId: tarea.id,
+                            itemPlantillaId: item.id,
+                            descripcion: nuevo,
+                          })
+                        }
+                        size="md"
+                      />
                     </li>
                   );
                 })}

@@ -25,7 +25,12 @@ import { cn } from "@/lib/utils";
 import { datosTarea } from "@/lib/tareas/tarea-datos";
 import { infoNegocio } from "@/lib/tareas/negocios";
 import { BadgeNegocio } from "./SelectorNegocio";
-import { completarTarea, marcarChecklistItem } from "@/lib/tareas/actions";
+import {
+  completarTarea,
+  editarChecklistItemTexto,
+  marcarChecklistItem,
+} from "@/lib/tareas/actions";
+import { ChecklistItemRow } from "./ChecklistItemRow";
 import type { Prisma } from "@prisma/client";
 
 type Tarea = Prisma.TareaInstanciaGetPayload<{
@@ -80,6 +85,13 @@ export function TareaCard({ tarea }: TareaCardProps) {
   const marcadosMap = useMemo(() => {
     const m = new Map<string, boolean>();
     for (const x of tarea.checklistMarcados) m.set(x.plantillaItemId, x.marcado);
+    return m;
+  }, [tarea.checklistMarcados]);
+  const overridesMap = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const x of tarea.checklistMarcados) {
+      m.set(x.plantillaItemId, x.descripcionOverride ?? null);
+    }
     return m;
   }, [tarea.checklistMarcados]);
 
@@ -287,54 +299,33 @@ export function TareaCard({ tarea }: TareaCardProps) {
             >
               <div className="space-y-2 rounded-md border border-border/40 bg-muted/20 p-2.5 mt-1">
                 <ul className="space-y-1.5">
-                  {items.map((item, idx) => {
-                    const marcado = marcadosMap.get(item.id) ?? false;
-                    return (
-                      <motion.li
-                        key={item.id}
-                        initial={{ opacity: 0, x: -4 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.025 }}
-                        className="flex items-start gap-2"
-                      >
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => onToggleItem(item.id, !marcado)}
-                          className={cn(
-                            "mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 transition-colors",
-                            marcado
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-muted-foreground/40 hover:border-primary",
-                            isPending && "opacity-60",
-                          )}
-                          aria-label={marcado ? "Desmarcar paso" : "Marcar paso"}
-                        >
-                          {marcado ? (
-                            <CheckCircle2 className="h-2.5 w-2.5" />
-                          ) : (
-                            <Circle className="h-2.5 w-2.5 opacity-0" />
-                          )}
-                        </button>
-                        <span
-                          className={cn(
-                            "text-xs leading-snug",
-                            marcado && "text-muted-foreground line-through",
-                          )}
-                        >
-                          <span className="mr-1 text-muted-foreground tabular-nums">
-                            {idx + 1}.
-                          </span>
-                          {item.descripcion}
-                          {!item.obligatorio && (
-                            <span className="ml-1 text-[10px] text-muted-foreground">
-                              (opcional)
-                            </span>
-                          )}
-                        </span>
-                      </motion.li>
-                    );
-                  })}
+                  {items.map((item, idx) => (
+                    <motion.li
+                      key={item.id}
+                      initial={{ opacity: 0, x: -4 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.025 }}
+                    >
+                      <ChecklistItemRow
+                        itemPlantillaId={item.id}
+                        indice={idx + 1}
+                        descripcionOriginal={item.descripcion}
+                        descripcionOverride={overridesMap.get(item.id) ?? null}
+                        obligatorio={item.obligatorio}
+                        marcado={marcadosMap.get(item.id) ?? false}
+                        disabled={isPending}
+                        onToggle={(nuevo) => onToggleItem(item.id, nuevo)}
+                        onEditarTexto={(nuevo) =>
+                          editarChecklistItemTexto({
+                            tareaId: tarea.id,
+                            itemPlantillaId: item.id,
+                            descripcion: nuevo,
+                          })
+                        }
+                        size="sm"
+                      />
+                    </motion.li>
+                  ))}
                 </ul>
 
                 {puedeCompletar && (

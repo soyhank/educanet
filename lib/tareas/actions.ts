@@ -102,6 +102,49 @@ export async function marcarChecklistItem(input: {
   }
 }
 
+/**
+ * Editar el texto de un paso del checklist — override local en la instancia.
+ * No muta la plantilla del catálogo. String vacío quita el override.
+ */
+export async function editarChecklistItemTexto(input: {
+  tareaId: string;
+  itemPlantillaId: string;
+  descripcion: string;
+}): Promise<Result> {
+  try {
+    const user = await requireAuth();
+    const tarea = await cargarTareaPropia(input.tareaId, user.id);
+    if (tarea.estado === "COMPLETADA" || tarea.estado === "OMITIDA") {
+      return { success: false, error: "No se puede editar una tarea cerrada" };
+    }
+
+    const texto = input.descripcion.trim();
+    const override = texto.length > 0 ? texto : null;
+
+    await prisma.checklistItemMarcado.upsert({
+      where: {
+        tareaInstanciaId_plantillaItemId: {
+          tareaInstanciaId: input.tareaId,
+          plantillaItemId: input.itemPlantillaId,
+        },
+      },
+      create: {
+        tareaInstanciaId: input.tareaId,
+        plantillaItemId: input.itemPlantillaId,
+        marcado: false,
+        descripcionOverride: override,
+      },
+      update: { descripcionOverride: override },
+    });
+
+    revalidatePath("/tareas");
+    revalidatePath(`/tareas/${input.tareaId}`);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  }
+}
+
 export async function reportarBloqueoExterno(input: {
   tareaId: string;
   responsable: string;

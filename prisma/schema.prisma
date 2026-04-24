@@ -1174,12 +1174,14 @@ model TareaInstancia {
 }
 
 model ChecklistItemMarcado {
-  id               String    @id @default(cuid())
-  tareaInstanciaId String
-  plantillaItemId  String
-  marcado          Boolean   @default(false)
-  marcadoEn        DateTime?
-  notaRapida       String?
+  id                  String    @id @default(cuid())
+  tareaInstanciaId    String
+  plantillaItemId     String
+  marcado             Boolean   @default(false)
+  marcadoEn           DateTime?
+  notaRapida          String?
+  /** Override local del texto del paso (si se edita en la instancia). */
+  descripcionOverride String?   @db.Text
 
   tareaInstancia TareaInstancia         @relation(fields: [tareaInstanciaId], references: [id], onDelete: Cascade)
   plantillaItem  ChecklistItemPlantilla @relation(fields: [plantillaItemId], references: [id], onDelete: Cascade)
