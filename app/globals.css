@@ -395,6 +395,18 @@ body::before {
 }
 
 /* ---------------------------------------------------------------------------
+ * Edit pulse — ring sutil parpadeando para inputs en modo edición inline.
+ * -------------------------------------------------------------------------*/
+@keyframes pulse-edit {
+  0%, 100% {
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.4);
+  }
+}
+
+/* ---------------------------------------------------------------------------
  * Fondo sideral (solo landing) — nebulosa deriva lenta, anillo orbita,
  * cometa diagonal ocasional. Todo tenue; se apaga con reduced-motion.
  * -------------------------------------------------------------------------*/

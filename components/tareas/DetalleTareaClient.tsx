@@ -40,14 +40,20 @@ import { cn } from "@/lib/utils";
 import {
   completarTarea,
   desbloquearTarea,
+  editarTareaInstancia,
   iniciarTarea,
   marcarChecklistItem,
   reportarBloqueoExterno,
 } from "@/lib/tareas/actions";
 import { datosTarea } from "@/lib/tareas/tarea-datos";
-import { BadgeNegocio } from "./SelectorNegocio";
-import { ModalEditarTarea } from "./ModalEditarTarea";
-import type { Prisma } from "@prisma/client";
+import {
+  InlineDate,
+  InlineNegocio,
+  InlineNumber,
+  InlineText,
+  InlineTextarea,
+} from "./InlineEditable";
+import type { Negocio, Prisma } from "@prisma/client";
 
 type TareaDetalle = Prisma.TareaInstanciaGetPayload<{
   include: {
@@ -154,7 +160,7 @@ export function DetalleTareaClient({
 
   return (
     <>
-      <header className="space-y-2">
+      <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {cat ? (
             <>
@@ -167,20 +173,38 @@ export function DetalleTareaClient({
               {tarea.origen === "ASIGNADA_JEFE" ? "Asignada por jefe" : "Ad-hoc"}
             </Badge>
           )}
-          <BadgeNegocio negocio={tarea.negocio} />
+          <InlineNegocio
+            value={tarea.negocio}
+            onSave={(nuevo) =>
+              editarTareaInstancia({ tareaId: tarea.id, negocio: nuevo })
+            }
+          />
         </div>
-        <div className="flex flex-wrap items-start justify-between gap-3">
+
+        {cat ? (
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             {datos.nombre}
           </h1>
-          {tarea.estado !== "COMPLETADA" && tarea.estado !== "OMITIDA" && (
-            <ModalEditarTarea tarea={tarea} />
-          )}
-        </div>
+        ) : (
+          <InlineText
+            value={datos.nombre}
+            onSave={(nuevo) =>
+              editarTareaInstancia({ tareaId: tarea.id, nombreAdHoc: nuevo })
+            }
+            placeholder="Nombre de la tarea"
+            className="text-2xl font-semibold tracking-tight sm:text-3xl block w-full"
+            inputClassName="text-2xl sm:text-3xl font-semibold h-auto py-1"
+          />
+        )}
+
         {tarea.workflowInstancia && (
           <p className="text-sm text-muted-foreground">
-            Workflow: <strong className="text-foreground">{tarea.workflowInstancia.nombre}</strong>
-            {tarea.workflowInstancia.contextoMarca && ` · ${tarea.workflowInstancia.contextoMarca}`}
+            Workflow:{" "}
+            <strong className="text-foreground">
+              {tarea.workflowInstancia.nombre}
+            </strong>
+            {tarea.workflowInstancia.contextoMarca &&
+              ` · ${tarea.workflowInstancia.contextoMarca}`}
             {" · hito "}
             {tarea.workflowInstancia.fechaHito.toLocaleDateString("es")}
           </p>
@@ -194,9 +218,18 @@ export function DetalleTareaClient({
               <CardTitle className="text-base">Descripción</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {datos.descripcion || "Sin descripción."}
-              </p>
+              <InlineTextarea
+                value={datos.descripcion}
+                readOnly={!datos.esAdHoc}
+                placeholder={datos.esAdHoc ? "Agregar descripción" : "Sin descripción"}
+                className="text-sm leading-relaxed text-muted-foreground"
+                onSave={(nuevo) =>
+                  editarTareaInstancia({
+                    tareaId: tarea.id,
+                    descripcionAdHoc: nuevo,
+                  })
+                }
+              />
             </CardContent>
           </Card>
 
@@ -307,15 +340,59 @@ export function DetalleTareaClient({
                   Tiempo estimado
                 </p>
                 <p className="mt-1 text-lg font-semibold tabular-nums">
-                  {datos.tiempoMinimoMin}–{datos.tiempoMaximoMin} min
+                  {datos.esAdHoc ? (
+                    <>
+                      <InlineNumber
+                        value={datos.tiempoMinimoMin}
+                        min={1}
+                        max={9999}
+                        onSave={(nuevo) =>
+                          editarTareaInstancia({
+                            tareaId: tarea.id,
+                            tiempoEstimadoMinAdHoc: nuevo,
+                          })
+                        }
+                      />
+                      {"–"}
+                      <InlineNumber
+                        value={datos.tiempoMaximoMin}
+                        min={datos.tiempoMinimoMin}
+                        max={9999}
+                        onSave={(nuevo) =>
+                          editarTareaInstancia({
+                            tareaId: tarea.id,
+                            tiempoEstimadoMaxAdHoc: nuevo,
+                          })
+                        }
+                      />
+                      {" min"}
+                    </>
+                  ) : (
+                    `${datos.tiempoMinimoMin}–${datos.tiempoMaximoMin} min`
+                  )}
                 </p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Puntos
+                  Puntos base
                 </p>
                 <p className="mt-1 text-lg font-semibold tabular-nums">
-                  {datos.puntosBase} base
+                  {datos.esAdHoc ? (
+                    <InlineNumber
+                      value={datos.puntosBase}
+                      min={1}
+                      max={20}
+                      suffix=" pts"
+                      onSave={(nuevo) =>
+                        editarTareaInstancia({
+                          tareaId: tarea.id,
+                          puntosBaseAdHoc: nuevo,
+                        })
+                      }
+                    />
+                  ) : (
+                    `${datos.puntosBase} pts`
+                  )}
                 </p>
                 {datos.bonusATiempo > 0 && (
                   <p className="text-xs text-muted-foreground">
@@ -332,12 +409,29 @@ export function DetalleTareaClient({
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
                   Fechas
                 </p>
-                <p className="mt-1 text-sm tabular-nums">
-                  Inicio: {tarea.fechaEstimadaInicio.toLocaleDateString("es")}
-                </p>
-                <p className="text-sm tabular-nums">
-                  Fin: {tarea.fechaEstimadaFin.toLocaleDateString("es")}
-                </p>
+                <div className="mt-1 space-y-1">
+                  <InlineDate
+                    label="Inicio"
+                    value={tarea.fechaEstimadaInicio}
+                    onSave={(nuevo) =>
+                      editarTareaInstancia({
+                        tareaId: tarea.id,
+                        fechaEstimadaInicio: nuevo,
+                      })
+                    }
+                  />
+                  <br />
+                  <InlineDate
+                    label="Fin"
+                    value={tarea.fechaEstimadaFin}
+                    onSave={(nuevo) =>
+                      editarTareaInstancia({
+                        tareaId: tarea.id,
+                        fechaEstimadaFin: nuevo,
+                      })
+                    }
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

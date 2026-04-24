@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -238,87 +239,130 @@ export function TareaCard({ tarea }: TareaCardProps) {
           <button
             type="button"
             onClick={() => setExpand((v) => !v)}
-            className="flex w-full items-center justify-between gap-2 rounded-md border border-border/40 bg-muted/40 px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className={cn(
+              "flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs transition-all",
+              expand
+                ? "border-primary/30 bg-primary/5 text-foreground"
+                : "border-border/40 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
             aria-expanded={expand}
           >
             <span className="flex items-center gap-1.5">
-              <ListChecks className="h-3 w-3" />
-              {expand ? "Ocultar checklist" : `Ver checklist (${marcados}/${totalItems})`}
+              <ListChecks
+                className={cn(
+                  "h-3.5 w-3.5 transition-colors",
+                  expand && "text-primary",
+                )}
+              />
+              <span className="font-medium">
+                {expand ? "Ocultar checklist" : "Ver checklist"}
+              </span>
+              <span className="tabular-nums text-muted-foreground">
+                ({marcados}/{totalItems})
+              </span>
             </span>
-            {expand ? (
-              <ChevronUp className="h-3 w-3" />
-            ) : (
-              <ChevronDown className="h-3 w-3" />
-            )}
+            <motion.span
+              animate={{ rotate: expand ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </motion.span>
           </button>
         )}
 
-        {/* Checklist expandido */}
-        {expand && totalItems > 0 && (
-          <div className="space-y-2 rounded-md border border-border/40 bg-muted/20 p-2.5">
-            <ul className="space-y-1.5">
-              {items.map((item, idx) => {
-                const marcado = marcadosMap.get(item.id) ?? false;
-                return (
-                  <li key={item.id} className="flex items-start gap-2">
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => onToggleItem(item.id, !marcado)}
-                      className={cn(
-                        "mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 transition-colors",
-                        marcado
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-muted-foreground/40 hover:border-primary",
-                        isPending && "opacity-60",
-                      )}
-                      aria-label={marcado ? "Desmarcar paso" : "Marcar paso"}
-                    >
-                      {marcado ? (
-                        <CheckCircle2 className="h-2.5 w-2.5" />
-                      ) : (
-                        <Circle className="h-2.5 w-2.5 opacity-0" />
-                      )}
-                    </button>
-                    <span
-                      className={cn(
-                        "text-xs leading-snug",
-                        marcado && "text-muted-foreground line-through",
-                      )}
-                    >
-                      <span className="mr-1 text-muted-foreground tabular-nums">
-                        {idx + 1}.
-                      </span>
-                      {item.descripcion}
-                      {!item.obligatorio && (
-                        <span className="ml-1 text-[10px] text-muted-foreground">
-                          (opcional)
+        {/* Checklist expandido con animación */}
+        <AnimatePresence initial={false}>
+          {expand && totalItems > 0 && (
+            <motion.div
+              key="checklist"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{
+                height: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
+                opacity: { duration: 0.18 },
+              }}
+              className="overflow-hidden"
+            >
+              <div className="space-y-2 rounded-md border border-border/40 bg-muted/20 p-2.5 mt-1">
+                <ul className="space-y-1.5">
+                  {items.map((item, idx) => {
+                    const marcado = marcadosMap.get(item.id) ?? false;
+                    return (
+                      <motion.li
+                        key={item.id}
+                        initial={{ opacity: 0, x: -4 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.025 }}
+                        className="flex items-start gap-2"
+                      >
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => onToggleItem(item.id, !marcado)}
+                          className={cn(
+                            "mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 transition-colors",
+                            marcado
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-muted-foreground/40 hover:border-primary",
+                            isPending && "opacity-60",
+                          )}
+                          aria-label={marcado ? "Desmarcar paso" : "Marcar paso"}
+                        >
+                          {marcado ? (
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                          ) : (
+                            <Circle className="h-2.5 w-2.5 opacity-0" />
+                          )}
+                        </button>
+                        <span
+                          className={cn(
+                            "text-xs leading-snug",
+                            marcado && "text-muted-foreground line-through",
+                          )}
+                        >
+                          <span className="mr-1 text-muted-foreground tabular-nums">
+                            {idx + 1}.
+                          </span>
+                          {item.descripcion}
+                          {!item.obligatorio && (
+                            <span className="ml-1 text-[10px] text-muted-foreground">
+                              (opcional)
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+                      </motion.li>
+                    );
+                  })}
+                </ul>
 
-            {puedeCompletar && (
-              <Button
-                size="sm"
-                className="w-full"
-                onClick={onCompletarRapido}
-                disabled={isPending}
-              >
-                <CheckCircle2 />
-                Completar tarea
-              </Button>
-            )}
-            {!puedeCompletar && obligatoriosRestantes > 0 && (
-              <p className="text-[11px] text-muted-foreground">
-                Faltan {obligatoriosRestantes} pasos obligatorios
-              </p>
-            )}
-          </div>
-        )}
+                {puedeCompletar && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: items.length * 0.025 }}
+                  >
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={onCompletarRapido}
+                      disabled={isPending}
+                    >
+                      <CheckCircle2 />
+                      Completar tarea
+                    </Button>
+                  </motion.div>
+                )}
+                {!puedeCompletar && obligatoriosRestantes > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Faltan {obligatoriosRestantes} pasos obligatorios
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </CardContent>
     </Card>
   );
