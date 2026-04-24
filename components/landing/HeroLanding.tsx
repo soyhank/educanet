@@ -2,15 +2,15 @@ import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { HaloBackground } from "@/components/ui/primitives/HaloBackground";
 import { KineticTitle } from "@/components/ui/primitives/KineticTitle";
 
 import { DashboardPreview } from "./DashboardPreview";
+import { SideralBackground } from "./SideralBackground";
 
 export function HeroLanding() {
   return (
     <section className="relative overflow-hidden px-4 pb-24 pt-32">
-      <HaloBackground variant="top" />
+      <SideralBackground />
 
       <div className="relative mx-auto max-w-5xl text-center">
         <div className="glass mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 px-3 py-1 text-xs font-medium">

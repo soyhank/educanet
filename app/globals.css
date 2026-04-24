@@ -395,6 +395,56 @@ body::before {
 }
 
 /* ---------------------------------------------------------------------------
+ * Fondo sideral (solo landing) — nebulosa deriva lenta, anillo orbita,
+ * cometa diagonal ocasional. Todo tenue; se apaga con reduced-motion.
+ * -------------------------------------------------------------------------*/
+@keyframes sideral-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-1.5%, 1%, 0) scale(1.03); }
+}
+
+.sideral-nebula {
+  animation: sideral-drift 60s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes sideral-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.sideral-orbit {
+  transform-origin: 0 0;
+  animation: sideral-spin 180s linear infinite;
+}
+
+@keyframes sideral-comet-run {
+  0%, 90% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(18deg);
+  }
+  92% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(45vw, 22vh, 0) rotate(18deg);
+  }
+}
+
+.sideral-comet {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--foreground) / 0.9) 60%,
+    hsl(var(--primary) / 0.9) 100%
+  );
+  box-shadow: 0 0 12px hsl(var(--primary) / 0.4);
+  animation: sideral-comet-run 15s ease-in infinite;
+  will-change: transform, opacity;
+}
+
+/* ---------------------------------------------------------------------------
  * Accesibilidad — reducciones de motion / transparency.
  * -------------------------------------------------------------------------*/
 @media (prefers-reduced-motion: reduce) {
