@@ -64,89 +64,66 @@ export function SideralBackground() {
         ))}
       </motion.svg>
 
-      {/* Planeta con anillo */}
+      {/* Planeta con anillo — tenue, apartado hacia la derecha */}
       <motion.div
-        className="absolute right-[-6rem] top-[4rem] sm:right-[-3rem] md:right-[4rem] lg:right-[8rem]"
+        className="absolute right-[-14rem] top-[6rem] sm:right-[-10rem] md:right-[-6rem] lg:right-[-4rem]"
         style={{ y: yPlanet, opacity }}
       >
         <svg
-          width="520"
-          height="520"
-          viewBox="-260 -260 520 520"
-          className="opacity-80 md:opacity-95"
+          width="380"
+          height="380"
+          viewBox="-190 -190 380 380"
+          className="opacity-30 blur-[0.5px] md:opacity-40"
         >
           <defs>
-            {/* Superficie del planeta — radial offset para simular iluminación */}
+            {/* Superficie — tonos apagados, sin saturación alta */}
             <radialGradient id="planet-surface" cx="0.35" cy="0.35" r="0.75">
-              <stop offset="0%" stopColor="hsl(262 95% 82%)" stopOpacity="0.95" />
-              <stop offset="35%" stopColor="hsl(262 75% 55%)" stopOpacity="0.85" />
-              <stop offset="85%" stopColor="hsl(240 40% 18%)" stopOpacity="1" />
-              <stop offset="100%" stopColor="hsl(240 50% 8%)" stopOpacity="1" />
+              <stop offset="0%" stopColor="hsl(262 45% 55%)" stopOpacity="0.55" />
+              <stop offset="45%" stopColor="hsl(262 35% 35%)" stopOpacity="0.55" />
+              <stop offset="90%" stopColor="hsl(240 30% 14%)" stopOpacity="0.7" />
+              <stop offset="100%" stopColor="hsl(240 35% 8%)" stopOpacity="0.7" />
             </radialGradient>
 
-            {/* Glow alrededor del planeta */}
+            {/* Glow muy sutil */}
             <radialGradient id="planet-glow" cx="0.5" cy="0.5" r="0.5">
-              <stop offset="60%" stopColor="hsl(262 85% 68%)" stopOpacity="0" />
-              <stop offset="82%" stopColor="hsl(262 85% 68%)" stopOpacity="0.18" />
+              <stop offset="65%" stopColor="hsl(262 85% 68%)" stopOpacity="0" />
+              <stop offset="85%" stopColor="hsl(262 85% 68%)" stopOpacity="0.07" />
               <stop offset="100%" stopColor="hsl(262 85% 68%)" stopOpacity="0" />
             </radialGradient>
 
-            {/* Highlight superior (reflejo estilo liquid glass) */}
+            {/* Highlight sutil */}
             <radialGradient id="planet-highlight" cx="0.3" cy="0.25" r="0.4">
-              <stop offset="0%" stopColor="white" stopOpacity="0.35" />
-              <stop offset="60%" stopColor="white" stopOpacity="0.05" />
+              <stop offset="0%" stopColor="white" stopOpacity="0.12" />
+              <stop offset="60%" stopColor="white" stopOpacity="0.02" />
               <stop offset="100%" stopColor="white" stopOpacity="0" />
             </radialGradient>
 
-            {/* Anillo — gradient lineal con apertura central */}
+            {/* Anillo — gradient muy tenue */}
             <linearGradient id="ring-gradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="hsl(262 85% 75%)" stopOpacity="0" />
-              <stop offset="25%" stopColor="hsl(262 85% 78%)" stopOpacity="0.4" />
-              <stop offset="50%" stopColor="hsl(262 90% 85%)" stopOpacity="0.55" />
-              <stop offset="75%" stopColor="hsl(262 85% 78%)" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="hsl(262 85% 75%)" stopOpacity="0" />
+              <stop offset="0%" stopColor="hsl(262 60% 70%)" stopOpacity="0" />
+              <stop offset="30%" stopColor="hsl(262 60% 72%)" stopOpacity="0.18" />
+              <stop offset="50%" stopColor="hsl(262 65% 78%)" stopOpacity="0.25" />
+              <stop offset="70%" stopColor="hsl(262 60% 72%)" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="hsl(262 60% 70%)" stopOpacity="0" />
             </linearGradient>
           </defs>
 
-          {/* Rotación ambiental lenta del conjunto anillo/glow */}
           <g className="sideral-orbit">
-            {/* Glow */}
-            <circle r="200" fill="url(#planet-glow)" />
-
-            {/* Anillo — trazado detrás del planeta; el planeta lo tapa al frente */}
+            <circle r="150" fill="url(#planet-glow)" />
             <g transform="rotate(-22)">
               <ellipse
-                rx="195"
-                ry="44"
+                rx="145"
+                ry="32"
                 fill="none"
                 stroke="url(#ring-gradient)"
-                strokeWidth="2.2"
-              />
-              <ellipse
-                rx="175"
-                ry="38"
-                fill="none"
-                stroke="url(#ring-gradient)"
-                strokeWidth="1"
-                opacity="0.6"
+                strokeWidth="1.2"
               />
             </g>
           </g>
 
-          {/* Planeta al frente */}
-          <circle r="112" fill="url(#planet-surface)" />
-          <circle r="112" fill="url(#planet-highlight)" />
-
-          {/* Medio anillo al frente del planeta (arco inferior tras rotación) */}
-          <g transform="rotate(-22)" className="sideral-orbit">
-            <path
-              d="M -195 0 A 195 44 0 0 0 195 0"
-              fill="none"
-              stroke="url(#ring-gradient)"
-              strokeWidth="2.2"
-              opacity="0.55"
-            />
-          </g>
+          {/* Planeta */}
+          <circle r="82" fill="url(#planet-surface)" />
+          <circle r="82" fill="url(#planet-highlight)" />
         </svg>
       </motion.div>
 
