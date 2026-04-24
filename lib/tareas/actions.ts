@@ -785,7 +785,7 @@ export async function editarTareaInstancia(input: {
       return { success: false, error: "No se puede editar una tarea cerrada" };
     }
 
-    const esAdHoc = !tarea.catalogoTareaId;
+    const esAdHocPuro = !tarea.catalogoTareaId;
     const data: Record<string, unknown> = {};
 
     if (input.negocio !== undefined) data.negocio = input.negocio;
@@ -793,24 +793,32 @@ export async function editarTareaInstancia(input: {
     if (input.fechaEstimadaInicio) data.fechaEstimadaInicio = input.fechaEstimadaInicio;
     if (input.fechaEstimadaFin) data.fechaEstimadaFin = input.fechaEstimadaFin;
 
-    // Campos ad-hoc: solo si la tarea es ad-hoc
-    if (esAdHoc) {
-      if (input.nombreAdHoc !== undefined) {
-        if (!input.nombreAdHoc.trim()) {
+    // Nombre: editable siempre. Si tiene catálogo, string vacío revierte al
+    // catálogo (null). Si es ad-hoc puro, no puede quedar vacío.
+    if (input.nombreAdHoc !== undefined) {
+      const trimmed = input.nombreAdHoc.trim();
+      if (!trimmed) {
+        if (esAdHocPuro) {
           return { success: false, error: "El nombre no puede estar vacío" };
         }
-        data.nombreAdHoc = input.nombreAdHoc.trim();
+        data.nombreAdHoc = null;
+      } else {
+        data.nombreAdHoc = trimmed;
       }
-      if (input.descripcionAdHoc !== undefined) {
-        data.descripcionAdHoc = input.descripcionAdHoc.trim() || null;
-      }
+    }
+
+    // Descripción: editable siempre. Vacío siempre limpia el override.
+    if (input.descripcionAdHoc !== undefined) {
+      data.descripcionAdHoc = input.descripcionAdHoc.trim() || null;
+    }
+
+    // Puntos y tiempos: solo editables en ad-hoc puro (afectan gamificación;
+    // los del catálogo son parte de la calibración del sistema).
+    if (esAdHocPuro) {
       if (input.puntosBaseAdHoc !== undefined) {
         const max = esJefe || esAdmin ? 50 : 20;
         if (input.puntosBaseAdHoc < 1 || input.puntosBaseAdHoc > max) {
-          return {
-            success: false,
-            error: `Puntos entre 1 y ${max}`,
-          };
+          return { success: false, error: `Puntos entre 1 y ${max}` };
         }
         data.puntosBaseAdHoc = input.puntosBaseAdHoc;
       }

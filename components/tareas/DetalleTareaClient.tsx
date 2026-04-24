@@ -181,20 +181,23 @@ export function DetalleTareaClient({
           />
         </div>
 
-        {cat ? (
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {datos.nombre}
-          </h1>
-        ) : (
-          <InlineText
-            value={datos.nombre}
-            onSave={(nuevo) =>
-              editarTareaInstancia({ tareaId: tarea.id, nombreAdHoc: nuevo })
-            }
-            placeholder="Nombre de la tarea"
-            className="text-2xl font-semibold tracking-tight sm:text-3xl block w-full"
-            inputClassName="text-2xl sm:text-3xl font-semibold h-auto py-1"
-          />
+        <InlineText
+          value={datos.nombre}
+          onSave={(nuevo) =>
+            editarTareaInstancia({ tareaId: tarea.id, nombreAdHoc: nuevo })
+          }
+          allowEmpty={!!cat}
+          emptyHint={
+            cat ? `Al guardar vacío, vuelve al nombre original "${cat.nombre}"` : undefined
+          }
+          placeholder="Nombre de la tarea"
+          className="text-2xl font-semibold tracking-tight sm:text-3xl block w-full"
+          inputClassName="text-2xl sm:text-3xl font-semibold h-auto py-1"
+        />
+        {datos.tieneOverrideNombre && cat && (
+          <p className="text-xs text-muted-foreground italic">
+            Nombre personalizado (original: {cat.nombre})
+          </p>
         )}
 
         {tarea.workflowInstancia && (
@@ -220,8 +223,7 @@ export function DetalleTareaClient({
             <CardContent>
               <InlineTextarea
                 value={datos.descripcion}
-                readOnly={!datos.esAdHoc}
-                placeholder={datos.esAdHoc ? "Agregar descripción" : "Sin descripción"}
+                placeholder="Agregar descripción"
                 className="text-sm leading-relaxed text-muted-foreground"
                 onSave={(nuevo) =>
                   editarTareaInstancia({
@@ -230,6 +232,12 @@ export function DetalleTareaClient({
                   })
                 }
               />
+              {datos.tieneOverrideDescripcion && cat && (
+                <p className="mt-2 text-[11px] text-muted-foreground italic">
+                  Descripción personalizada · dejá el campo vacío para volver a
+                  la original del catálogo
+                </p>
+              )}
             </CardContent>
           </Card>
 

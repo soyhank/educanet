@@ -40,6 +40,8 @@ export function InlineText({
   value,
   onSave,
   readOnly = false,
+  allowEmpty = false,
+  emptyHint,
   placeholder = "Escribir…",
   className,
   inputClassName,
@@ -48,6 +50,11 @@ export function InlineText({
   value: string;
   onSave: (nuevo: string) => Promise<SaveResult>;
   readOnly?: boolean;
+  /** Permite guardar string vacío. El onSave recibe "" y decide qué hacer
+   *  (útil para revertir a un valor default, ej. nombre del catálogo). */
+  allowEmpty?: boolean;
+  /** Mensaje que aparece como hint cuando se vacía el campo en modo allowEmpty. */
+  emptyHint?: string;
   placeholder?: string;
   className?: string;
   inputClassName?: string;
@@ -75,7 +82,7 @@ export function InlineText({
       setEditing(false);
       return;
     }
-    if (!limpio) {
+    if (!limpio && !allowEmpty) {
       toast.error("No puede quedar vacío");
       setLocal(value);
       setEditing(false);
@@ -113,32 +120,39 @@ export function InlineText({
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <Input
-        ref={inputRef}
-        value={local}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            commit();
-          } else if (e.key === "Escape") {
-            setLocal(value);
-            setEditing(false);
-          }
-        }}
-        maxLength={maxLength}
-        className={cn(
-          "ring-2 ring-primary/40 animate-[pulse-edit_1.5s_ease-in-out_infinite]",
-          inputClassName,
+    <span className="inline-flex flex-col gap-1">
+      <span className="inline-flex items-center gap-1.5">
+        <Input
+          ref={inputRef}
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              setLocal(value);
+              setEditing(false);
+            }
+          }}
+          maxLength={maxLength}
+          className={cn(
+            "ring-2 ring-primary/40 animate-[pulse-edit_1.5s_ease-in-out_infinite]",
+            inputClassName,
+          )}
+          style={{
+            minWidth: Math.max(180, (local.length || placeholder.length) * 8) + "px",
+          }}
+          disabled={isPending}
+        />
+        {isPending && (
+          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
         )}
-        style={{
-          minWidth: Math.max(180, (local.length || placeholder.length) * 8) + "px",
-        }}
-        disabled={isPending}
-      />
-      {isPending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+      </span>
+      {allowEmpty && emptyHint && !local.trim() && (
+        <span className="text-xs text-muted-foreground italic">{emptyHint}</span>
+      )}
     </span>
   );
 }

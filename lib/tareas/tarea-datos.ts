@@ -22,13 +22,24 @@ type TareaConDatos = {
 };
 
 /**
- * Datos normalizados de una tarea — funciona con catálogo o ad-hoc.
+ * Datos normalizados de una tarea.
+ *
+ * Prioridad: `nombreAdHoc` y `descripcionAdHoc` funcionan como OVERRIDE de
+ * la instancia por encima del catálogo. Permite al usuario editar el
+ * título/descripción de su tarea sin mutar la plantilla global.
+ *
+ * Tiempos y puntos siguen siendo del catálogo (no overridables) — solo se
+ * editan directamente cuando la tarea es ad-hoc pura (sin catálogo).
  */
 export function datosTarea(tarea: TareaConDatos) {
+  const esAdHocPuro = !tarea.catalogoTarea;
+  const nombreOverride = tarea.nombreAdHoc?.trim();
+  const descripcionOverride = tarea.descripcionAdHoc?.trim();
+
   if (tarea.catalogoTarea) {
     return {
-      nombre: tarea.catalogoTarea.nombre,
-      descripcion: tarea.catalogoTarea.descripcion,
+      nombre: nombreOverride || tarea.catalogoTarea.nombre,
+      descripcion: descripcionOverride ?? tarea.catalogoTarea.descripcion,
       tiempoMinimoMin: tarea.catalogoTarea.tiempoMinimoMin,
       tiempoMaximoMin: tarea.catalogoTarea.tiempoMaximoMin,
       puntosBase: tarea.catalogoTarea.puntosBase,
@@ -36,11 +47,13 @@ export function datosTarea(tarea: TareaConDatos) {
       bonusDesbloqueo: tarea.catalogoTarea.bonusDesbloqueo,
       categoria: tarea.catalogoTarea.categoria,
       esAdHoc: false,
+      tieneOverrideNombre: !!nombreOverride,
+      tieneOverrideDescripcion: !!descripcionOverride,
     };
   }
   return {
-    nombre: tarea.nombreAdHoc ?? "Tarea sin nombre",
-    descripcion: tarea.descripcionAdHoc ?? "",
+    nombre: nombreOverride || "Tarea sin nombre",
+    descripcion: descripcionOverride ?? "",
     tiempoMinimoMin: tarea.tiempoEstimadoMinAdHoc ?? 30,
     tiempoMaximoMin: tarea.tiempoEstimadoMaxAdHoc ?? 60,
     puntosBase: tarea.puntosBaseAdHoc ?? 5,
@@ -48,6 +61,8 @@ export function datosTarea(tarea: TareaConDatos) {
     bonusDesbloqueo: 0,
     categoria: "COORDINACION_GENERAL",
     esAdHoc: true,
+    tieneOverrideNombre: !!nombreOverride,
+    tieneOverrideDescripcion: !!descripcionOverride,
   };
 }
 
