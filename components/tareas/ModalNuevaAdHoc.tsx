@@ -249,8 +249,7 @@ export function ModalNuevaAdHoc() {
           </div>
         </form>
 
-        {/* footer is a direct grid child — always visible, negative margins work correctly */}
-        <DialogFooter>
+        <DialogFooter className="sticky bottom-0">
           <Button
             type="button"
             variant="ghost"

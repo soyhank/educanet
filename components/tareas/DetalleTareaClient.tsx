@@ -111,13 +111,13 @@ export function DetalleTareaClient({
     () => (cat?.checklistItems ? [...cat.checklistItems].sort((a, b) => a.orden - b.orden) : []),
     [cat],
   );
-  const marcadosMap = useMemo(() => {
+  const [localMarcados, setLocalMarcados] = useState<Map<string, boolean>>(() => {
     const m = new Map<string, boolean>();
     for (const marcado of tarea.checklistMarcados) {
       m.set(marcado.plantillaItemId, marcado.marcado);
     }
     return m;
-  }, [tarea.checklistMarcados]);
+  });
   const overridesMap = useMemo(() => {
     const m = new Map<string, string | null>();
     for (const x of tarea.checklistMarcados) {
@@ -126,12 +126,10 @@ export function DetalleTareaClient({
     return m;
   }, [tarea.checklistMarcados]);
 
-  const itemsCompletados = itemsOrdenados.filter((i) =>
-    marcadosMap.get(i.id),
-  ).length;
+  const itemsCompletados = itemsOrdenados.filter((i) => localMarcados.get(i.id)).length;
   const totalObligatorios = itemsOrdenados.filter((i) => i.obligatorio).length;
   const obligatoriosMarcados = itemsOrdenados.filter(
-    (i) => i.obligatorio && marcadosMap.get(i.id),
+    (i) => i.obligatorio && localMarcados.get(i.id),
   ).length;
   const progreso =
     itemsOrdenados.length > 0
@@ -139,13 +137,14 @@ export function DetalleTareaClient({
       : 0;
 
   const onToggle = (itemId: string, nuevoEstado: boolean) => {
-    startTransition(async () => {
-      const res = await marcarChecklistItem({
-        tareaId: tarea.id,
-        itemPlantillaId: itemId,
-        marcado: nuevoEstado,
-      });
+    setLocalMarcados(prev => new Map(prev).set(itemId, nuevoEstado));
+    void marcarChecklistItem({
+      tareaId: tarea.id,
+      itemPlantillaId: itemId,
+      marcado: nuevoEstado,
+    }).then(res => {
       if (!res.success) {
+        setLocalMarcados(prev => new Map(prev).set(itemId, !nuevoEstado));
         toast.error(res.error ?? "Error al guardar");
       } else {
         router.refresh();
@@ -315,8 +314,8 @@ export function DetalleTareaClient({
                         descripcionOverride={overridesMap.get(item.id) ?? null}
                         ayudaContextual={item.ayudaContextual}
                         obligatorio={item.obligatorio}
-                        marcado={marcadosMap.get(item.id) ?? false}
-                        disabled={disabled || isPending}
+                        marcado={localMarcados.get(item.id) ?? false}
+                        disabled={disabled}
                         onToggle={(nuevo) => onToggle(item.id, nuevo)}
                         onEditarTexto={(nuevo) =>
                           editarChecklistItemTexto({
@@ -898,8 +897,7 @@ function ModalCompletar({
           </div>
         </form>
 
-        {/* footer is a direct grid child — always visible, negative margins work correctly */}
-        <DialogFooter>
+        <DialogFooter className="sticky bottom-0">
           <Button
             type="button"
             variant="ghost"
