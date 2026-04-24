@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { obtenerTareaActual } from "@/lib/tareas/queries";
+import { datosTarea } from "@/lib/tareas/tarea-datos";
 
 export async function WidgetTareaActual({ userId }: { userId: string }) {
   // Resiliente: si las tablas de Prompt 18 aún no existen en la DB (db push
@@ -21,7 +22,8 @@ export async function WidgetTareaActual({ userId }: { userId: string }) {
   }
   if (!tarea) return null;
 
-  const totalItems = tarea.catalogoTarea.checklistItems.length;
+  const datos = datosTarea(tarea);
+  const totalItems = tarea.catalogoTarea?.checklistItems.length ?? 0;
   const completados = tarea.checklistMarcados.length;
   const progreso = totalItems > 0 ? Math.round((completados / totalItems) * 100) : 0;
 
@@ -31,7 +33,7 @@ export async function WidgetTareaActual({ userId }: { userId: string }) {
         <CardDescription className="text-xs uppercase tracking-wider">
           Tu tarea actual
         </CardDescription>
-        <CardTitle className="text-xl">{tarea.catalogoTarea.nombre}</CardTitle>
+        <CardTitle className="text-xl">{datos.nombre}</CardTitle>
         {tarea.workflowInstancia && (
           <p className="text-sm text-muted-foreground">
             {tarea.workflowInstancia.nombre}
@@ -40,10 +42,12 @@ export async function WidgetTareaActual({ userId }: { userId: string }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <ListChecks className="h-3 w-3" />
-            {completados}/{totalItems} pasos
-          </span>
+          {totalItems > 0 && (
+            <span className="flex items-center gap-1">
+              <ListChecks className="h-3 w-3" />
+              {completados}/{totalItems} pasos
+            </span>
+          )}
           {tarea.fechaInicioReal && (
             <span className="flex items-center gap-1 tabular-nums">
               <Clock className="h-3 w-3" />

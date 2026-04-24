@@ -227,6 +227,12 @@ model User {
   validacionesCompromisos  Compromiso[]      @relation("ValidacionesCompromisos")
   encuestasSemanal         EncuestaSemanal[]
 
+  // Prompt 18 — tareas operativas estructuradas
+  tareasAsignadas          TareaInstancia[]    @relation("TareasAsignadas")
+  tareasEjecutadasPorAyuda TareaInstancia[]    @relation("TareasEjecutadasPorAyuda")
+  tareasValidadasComoJefe  TareaInstancia[]    @relation("TareasValidadas")
+  workflowsResponsable     WorkflowInstancia[] @relation("WorkflowsResponsable")
+
   @@index([email])
   @@index([areaId])
   @@index([puestoId])
@@ -258,6 +264,7 @@ model Puesto {
   rutasOrigen     RutaCarrera[]         @relation("PuestoOrigen")
   rutasDestino    RutaCarrera[]         @relation("PuestoDestino")
   kpiDefiniciones PuestoKpiDefinicion[]
+  catalogoTareas  CatalogoTarea[]
 
   @@index([areaId])
 }
@@ -923,4 +930,246 @@ model EncuestaSemanal {
 
   @@unique([userId, semanaDelAnio, anio])
   @@index([anio, semanaDelAnio])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Prompt 18 — Tareas operativas estructuradas (workflows + checklist)
+// Los puntos pasan por procesarEvento (fuente COMPROMISOS, tope 200/mes)
+// ═══════════════════════════════════════════════════════════════════
+
+enum CategoriaTarea {
+  PRE_WEBINAR
+  DURANTE_WEBINAR
+  POST_WEBINAR
+  SEO_RECURRENTE
+  CAMPANA_META_ADS
+  COORDINACION_GENERAL
+  DISENO
+  DESARROLLO_WEB
+}
+
+enum TipoTrabajoTarea {
+  COORDINACION
+  EJECUCION
+  ANALISIS
+  REVISION
+}
+
+enum TipoDependencia {
+  FIN_A_INICIO
+  FIN_A_FIN
+  INICIO_A_INICIO
+}
+
+enum CategoriaWorkflow {
+  WEBINAR
+  CAMPANA_MARKETING
+  LANZAMIENTO_CURSO
+  EVENTO_PRESENCIAL
+}
+
+enum EstadoWorkflow {
+  ACTIVO
+  COMPLETADO
+  CANCELADO
+  PAUSADO
+}
+
+enum EstadoTareaInstancia {
+  PENDIENTE
+  BLOQUEADA
+  EN_PROGRESO
+  EN_REVISION
+  COMPLETADA
+  OMITIDA
+  VENCIDA
+}
+
+enum OrigenTarea {
+  AUTO_WORKFLOW   // generada al crear workflow
+  ASIGNADA_JEFE   // asignada directamente por el jefe (con o sin workflow)
+  AUTO_ASIGNADA   // el empleado la creó por su cuenta (requiere validación)
+}
+
+model CatalogoTarea {
+  id                  String           @id @default(cuid())
+  codigo              String           @unique
+  nombre              String
+  descripcion         String           @db.Text
+  categoria           CategoriaTarea
+  rolResponsableId    String
+  tiempoMinimoMin     Int
+  tiempoMaximoMin     Int
+  tipoTrabajo         TipoTrabajoTarea
+  puntosBase          Int              @default(5)
+  bonusATiempo        Int              @default(2)
+  bonusDesbloqueo     Int              @default(3)
+  permiteVariabilidad Boolean          @default(true)
+  activa              Boolean          @default(true)
+  orden               Int              @default(0)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  rolResponsable      Puesto                   @relation(fields: [rolResponsableId], references: [id], onDelete: Restrict)
+  checklistItems      ChecklistItemPlantilla[]
+  dependenciasOrigen  DependenciaTarea[]       @relation("TareaOrigen")
+  dependenciasDestino DependenciaTarea[]       @relation("TareaDestino")
+  instancias          TareaInstancia[]
+  enWorkflows         TareaEnWorkflow[]
+
+  @@index([categoria, activa])
+  @@index([rolResponsableId])
+}
+
+model ChecklistItemPlantilla {
+  id                String  @id @default(cuid())
+  catalogoTareaId   String
+  orden             Int
+  descripcion       String  @db.Text
+  ayudaContextual   String? @db.Text
+  obligatorio       Boolean @default(true)
+  tiempoEstimadoMin Int?
+
+  catalogoTarea CatalogoTarea          @relation(fields: [catalogoTareaId], references: [id], onDelete: Cascade)
+  marcados      ChecklistItemMarcado[]
+
+  @@index([catalogoTareaId, orden])
+}
+
+model DependenciaTarea {
+  id              String          @id @default(cuid())
+  tareaOrigenId   String
+  tareaDestinoId  String
+  tipoDependencia TipoDependencia @default(FIN_A_INICIO)
+  holguraDias     Int             @default(0)
+
+  tareaOrigen  CatalogoTarea @relation("TareaOrigen", fields: [tareaOrigenId], references: [id], onDelete: Cascade)
+  tareaDestino CatalogoTarea @relation("TareaDestino", fields: [tareaDestinoId], references: [id], onDelete: Cascade)
+
+  @@unique([tareaOrigenId, tareaDestinoId])
+}
+
+model WorkflowPlantilla {
+  id                String            @id @default(cuid())
+  codigo            String            @unique
+  nombre            String
+  descripcion       String            @db.Text
+  categoria         CategoriaWorkflow
+  duracionTotalDias Int
+  activo            Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  tareas     TareaEnWorkflow[]
+  instancias WorkflowInstancia[]
+}
+
+model TareaEnWorkflow {
+  id               String  @id @default(cuid())
+  workflowId       String
+  catalogoTareaId  String
+  ordenEjecucion   Int
+  diasAntesDelHito Int
+  obligatoria      Boolean @default(true)
+
+  workflow      WorkflowPlantilla @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  catalogoTarea CatalogoTarea     @relation(fields: [catalogoTareaId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, catalogoTareaId])
+  @@index([workflowId, ordenEjecucion])
+}
+
+model WorkflowInstancia {
+  id                   String         @id @default(cuid())
+  plantillaId          String
+  nombre               String
+  contextoMarca        String?
+  fechaHito            DateTime
+  estadoGeneral        EstadoWorkflow @default(ACTIVO)
+  responsableGeneralId String
+  notas                String?        @db.Text
+  createdAt            DateTime       @default(now())
+  actualizadoEn        DateTime       @updatedAt
+
+  plantilla          WorkflowPlantilla @relation(fields: [plantillaId], references: [id], onDelete: Restrict)
+  responsableGeneral User              @relation("WorkflowsResponsable", fields: [responsableGeneralId], references: [id], onDelete: Restrict)
+  tareas             TareaInstancia[]
+
+  @@index([fechaHito, estadoGeneral])
+  @@index([responsableGeneralId])
+}
+
+model TareaInstancia {
+  id                        String               @id @default(cuid())
+  workflowInstanciaId       String?              // opcional para tareas ad-hoc
+  catalogoTareaId           String?              // opcional para tareas ad-hoc
+  asignadoAId               String
+  origen                    OrigenTarea          @default(AUTO_WORKFLOW)
+  estado                    EstadoTareaInstancia @default(PENDIENTE)
+
+  // Datos ad-hoc (cuando no hay catálogo)
+  nombreAdHoc               String?
+  descripcionAdHoc          String?              @db.Text
+  puntosBaseAdHoc           Int?
+  tiempoEstimadoMinAdHoc    Int?
+  tiempoEstimadoMaxAdHoc    Int?
+
+  fechaEstimadaInicio       DateTime
+  fechaEstimadaFin          DateTime
+  fechaInicioReal           DateTime?
+  fechaFinReal              DateTime?
+  tiempoInvertidoMin        Int?
+  bloqueadoPor              String?
+  bloqueoExternoDesde       DateTime?
+  bloqueoExternoHasta       DateTime?
+  bloqueoExternoResponsable String?
+  bloqueoExternoMotivo      String?              @db.Text
+  completadaEn              DateTime?
+  calidadAutoeval           Int?
+  notasEjecutor             String?              @db.Text
+  ejecutadaPorOtro          Boolean              @default(false)
+  ejecutadaRealmenteId      String?
+  motivoAyuda               String?
+
+  // Validación del jefe (para ad-hoc del empleado)
+  requiereValidacionJefe    Boolean              @default(false)
+  validadaPorJefeId         String?
+  validadaEn                DateTime?
+  comentarioValidacion      String?              @db.Text
+
+  // Puntos — brutos y prorrateados
+  puntosBrutos              Int                  @default(0)
+  puntosOtorgados           Int                  @default(0)
+  puntosATiempo             Boolean              @default(false)
+  puntosDesbloqueo          Boolean              @default(false)
+  factorProrrateo           Float                @default(1.0)
+
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+
+  workflowInstancia  WorkflowInstancia?     @relation(fields: [workflowInstanciaId], references: [id], onDelete: Cascade)
+  catalogoTarea      CatalogoTarea?         @relation(fields: [catalogoTareaId], references: [id], onDelete: Restrict)
+  asignadoA          User                   @relation("TareasAsignadas", fields: [asignadoAId], references: [id], onDelete: Restrict)
+  ejecutadaRealmente User?                  @relation("TareasEjecutadasPorAyuda", fields: [ejecutadaRealmenteId], references: [id], onDelete: SetNull)
+  validadaPorJefe    User?                  @relation("TareasValidadas", fields: [validadaPorJefeId], references: [id], onDelete: SetNull)
+  checklistMarcados  ChecklistItemMarcado[]
+
+  @@index([asignadoAId, estado])
+  @@index([workflowInstanciaId, estado])
+  @@index([fechaEstimadaFin, estado])
+  @@index([asignadoAId, origen, requiereValidacionJefe])
+}
+
+model ChecklistItemMarcado {
+  id               String    @id @default(cuid())
+  tareaInstanciaId String
+  plantillaItemId  String
+  marcado          Boolean   @default(false)
+  marcadoEn        DateTime?
+  notaRapida       String?
+
+  tareaInstancia TareaInstancia         @relation(fields: [tareaInstanciaId], references: [id], onDelete: Cascade)
+  plantillaItem  ChecklistItemPlantilla @relation(fields: [plantillaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([tareaInstanciaId, plantillaItemId])
 }

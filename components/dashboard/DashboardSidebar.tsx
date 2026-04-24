@@ -53,6 +53,7 @@ const sections: { title: string; items: NavItem[] }[] = [
     title: "Crecer",
     items: [
       { label: "Mi progreso", href: "/mi-progreso", icon: Target },
+      { label: "Mis tareas", href: "/tareas", icon: ClipboardCheck },
       { label: "Reconocimientos", href: "/reconocimientos", icon: Heart },
       { label: "Mis hitos KPI", href: "/compromisos", icon: CheckSquare },
       { label: "Mi equipo", href: "/mi-equipo", icon: Users, soloJefe: true },

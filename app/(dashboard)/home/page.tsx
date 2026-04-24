@@ -21,6 +21,7 @@ import {
   ActividadEquipoBentoCard,
   IrAMiProgresoBentoCard,
 } from "@/components/dashboard/home/BentoCards";
+import { WidgetTareaActual } from "@/components/tareas/WidgetTareaActual";
 
 export const metadata = { title: "Inicio" };
 
@@ -88,6 +89,12 @@ export default async function HomePage() {
           porcentajeRango: progreso.porcentajeAlSiguiente,
         }}
       />
+
+      <div className="mb-6">
+        <Suspense fallback={null}>
+          <WidgetTareaActual userId={user.id} />
+        </Suspense>
+      </div>
 
       <BentoGrid>
         <BentoItem span="2x2">
