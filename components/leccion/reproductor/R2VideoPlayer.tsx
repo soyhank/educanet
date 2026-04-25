@@ -72,8 +72,13 @@ export function R2VideoPlayer({
   const toggle = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) { v.play(); setPlaying(true); }
-    else { v.pause(); setPlaying(false); }
+    if (v.paused) {
+      v.play().catch(() => {}); // ignora AbortError si pause() interrumpe
+      setPlaying(true);
+    } else {
+      v.pause();
+      setPlaying(false);
+    }
     resetHideTimer();
   };
 
@@ -200,7 +205,7 @@ export function R2VideoPlayer({
       {!playing && (
         <button
           type="button"
-          onClick={toggle}
+          onClick={(e) => { e.stopPropagation(); toggle(); }}
           className="absolute inset-0 flex items-center justify-center"
         >
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/90 shadow-lg transition-transform hover:scale-105">
