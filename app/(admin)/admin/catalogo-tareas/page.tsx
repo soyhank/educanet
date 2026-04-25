@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { OnboardingToggle } from "./OnboardingToggle";
 
 export const metadata = { title: "Admin · Catálogo de tareas" };
 
@@ -14,6 +15,8 @@ const LABEL_CATEGORIA: Record<string, string> = {
   COORDINACION_GENERAL: "Coordinación",
   DISENO: "Diseño",
   DESARROLLO_WEB: "Desarrollo Web",
+  CONTENIDO: "Contenido",
+  CONTENIDO_CURSOS: "Cursos",
 };
 
 export default async function AdminCatalogoTareasPage() {
@@ -39,8 +42,8 @@ export default async function AdminCatalogoTareasPage() {
       <div>
         <h1 className="text-2xl font-bold">Catálogo de tareas operativas</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {tareas.length} tareas estandarizadas. Edición avanzada vía{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">npm run db:studio</code>.
+          {tareas.length} tareas estandarizadas. Marca las que deben asignarse
+          automáticamente al registrarse un nuevo empleado.
         </p>
       </div>
 
@@ -64,6 +67,7 @@ export default async function AdminCatalogoTareasPage() {
                     <th className="p-3 text-right">Puntos</th>
                     <th className="p-3 text-right">Checklist</th>
                     <th className="p-3 text-right">Instancias</th>
+                    <th className="p-3 text-center">Onboarding</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -93,6 +97,9 @@ export default async function AdminCatalogoTareasPage() {
                       </td>
                       <td className="p-3 text-right tabular-nums text-muted-foreground">
                         {t._count.instancias}
+                      </td>
+                      <td className="p-3 text-center">
+                        <OnboardingToggle id={t.id} esOnboarding={t.esOnboarding} />
                       </td>
                     </tr>
                   ))}

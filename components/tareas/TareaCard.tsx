@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, useEffect } from "react";
+import { useMemo, useState, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -11,6 +11,7 @@ import {
   Circle,
   Clock,
   ListChecks,
+  Trash2,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import { BadgeNegocio } from "./SelectorNegocio";
 import {
   completarTarea,
   editarChecklistItemTexto,
+  eliminarTareaInstancia,
   marcarChecklistItem,
   marcarChecklistAdHocItem,
 } from "@/lib/tareas/actions";
@@ -46,6 +48,7 @@ export type TareaCardProps = {
   /** Oculta el botón "Completar tarea" (usado en vista jefe, donde solo
    *  el empleado puede marcarla como completada). */
   hideCompleteButton?: boolean;
+  onExpandChange?: (expanded: boolean) => void;
 };
 
 const LABEL_CATEGORIA: Record<string, string> = {
@@ -68,10 +71,33 @@ function diasRestantes(fecha: Date): { texto: string; urgente: boolean } {
   return { texto: `${diff} días`, urgente: false };
 }
 
-export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps) {
+export function TareaCard({ tarea, hideCompleteButton = false, onExpandChange }: TareaCardProps) {
   const router = useRouter();
   const [expand, setExpand] = useState(false);
+  const [editingItem, setEditingItem] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [armado, setArmado] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onEliminar = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!armado) {
+      setArmado(true);
+      timerRef.current = setTimeout(() => setArmado(false), 2500);
+      return;
+    }
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setArmado(false);
+    startTransition(async () => {
+      const res = await eliminarTareaInstancia(tarea.id);
+      if (!res.success) toast.error(res.error ?? "Error al eliminar");
+      else {
+        toast.success("Tarea eliminada");
+        router.refresh();
+      }
+    });
+  };
 
   const datos = datosTarea(tarea);
   const negocioInfo = infoNegocio(tarea.negocio);
@@ -158,6 +184,12 @@ export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps)
         router.refresh();
       }
     });
+  };
+
+  const handleItemEditingChange = (isEditing: boolean) => {
+    setEditingItem(isEditing);
+    if (isEditing) onExpandChange?.(true);
+    // collapse is handled externally by KanbanTareas click-outside
   };
 
   const onCompletarRapido = () => {
@@ -255,11 +287,28 @@ export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps)
               {urgencia.texto}
             </span>
           </div>
-          {totalItems > 0 && (
-            <span className="tabular-nums text-muted-foreground">
-              {marcados}/{totalItems} ✓
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {totalItems > 0 && (
+              <span className="tabular-nums text-muted-foreground">
+                {marcados}/{totalItems} ✓
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={onEliminar}
+              disabled={isPending}
+              className={cn(
+                "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                armado
+                  ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                  : "text-muted-foreground hover:text-destructive",
+              )}
+              title={armado ? "Clic para confirmar eliminación" : "Eliminar tarea"}
+            >
+              <Trash2 className="h-3 w-3" />
+              {armado && <span>¿Eliminar?</span>}
+            </button>
+          </div>
         </div>
 
         {/* Badges */}
@@ -283,7 +332,11 @@ export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps)
         {totalItems > 0 && (
           <button
             type="button"
-            onClick={() => setExpand((v) => !v)}
+            onClick={() => {
+              const next = !expand;
+              setExpand(next);
+              onExpandChange?.(next || editingItem);
+            }}
             className={cn(
               "flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs transition-all",
               expand
@@ -350,6 +403,7 @@ export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps)
                             disabled={false}
                             onToggle={(nuevo) => onToggleAdHocItem(idx, nuevo)}
                             onEditarTexto={async () => ({ success: true })}
+                            onEditingChange={handleItemEditingChange}
                             size="sm"
                           />
                         </motion.li>
@@ -377,6 +431,7 @@ export function TareaCard({ tarea, hideCompleteButton = false }: TareaCardProps)
                                 descripcion: nuevo,
                               })
                             }
+                            onEditingChange={handleItemEditingChange}
                             size="sm"
                           />
                         </motion.li>

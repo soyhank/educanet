@@ -17,8 +17,23 @@ export async function actualizarUsuario(
   }
 ) {
   await requireRole(["ADMIN", "RRHH"]);
-  await prisma.user.update({ where: { id }, data });
+
+  let payload = { ...data };
+
+  // Derive areaId from the puesto so the user appears in the correct team view
+  if (data.puestoId) {
+    const puesto = await prisma.puesto.findUnique({
+      where: { id: data.puestoId },
+      select: { areaId: true },
+    });
+    if (puesto) payload.areaId = puesto.areaId;
+  } else if (data.puestoId === null) {
+    payload.areaId = null;
+  }
+
+  await prisma.user.update({ where: { id }, data: payload });
   revalidatePath("/admin/usuarios");
+  revalidatePath(`/admin/usuarios/${id}`);
 }
 
 export async function actualizarRolUsuario(id: string, rol: RolUsuario) {

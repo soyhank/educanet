@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { EstadoTareaInstancia, Prisma } from "@prisma/client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,8 +15,10 @@ type Tarea = Prisma.TareaInstanciaGetPayload<{
   };
 }>;
 
+type ColEstado = EstadoTareaInstancia | "CERRADAS";
+
 const COLUMNAS: Array<{
-  estado: EstadoTareaInstancia | "CERRADAS";
+  estado: ColEstado;
   titulo: string;
   filtra: (t: Tarea) => boolean;
   tono: string;
@@ -52,6 +57,8 @@ export function KanbanMiembro({
   tareas: Tarea[];
   jefeId: string;
 }) {
+  const [expandedCol, setExpandedCol] = useState<ColEstado | null>(null);
+
   if (tareas.length === 0) {
     return (
       <Card>
@@ -62,8 +69,17 @@ export function KanbanMiembro({
     );
   }
 
+  const gridStyle = expandedCol
+    ? {
+        gridTemplateColumns: COLUMNAS.map((c) =>
+          c.estado === expandedCol ? "2fr" : "1fr",
+        ).join(" "),
+        transition: "grid-template-columns 0.3s ease",
+      }
+    : { transition: "grid-template-columns 0.3s ease" };
+
   return (
-    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4" style={gridStyle}>
       {COLUMNAS.map((col) => {
         const items = tareas.filter(col.filtra);
         return (
@@ -92,6 +108,9 @@ export function KanbanMiembro({
                     tarea={t}
                     userId={jefeId}
                     hideCompleteButton
+                    onExpandChange={(expanded) =>
+                      setExpandedCol(expanded ? col.estado : null)
+                    }
                   />
                 ))
               )}

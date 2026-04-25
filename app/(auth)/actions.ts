@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { loginSchema, registerSchema, resetPasswordSchema, updatePasswordSchema } from "@/lib/auth-schemas";
 import { checkRateLimit, loginLimiter, registerLimiter, resetPasswordLimiter, getClientIp } from "@/lib/rate-limit";
+import { prisma } from "@/lib/prisma";
+import { asignarTareasOnboarding } from "@/lib/tareas/onboarding";
 
 type ActionResult = {
   error?: string;
@@ -145,6 +147,33 @@ export async function registerAction(
           "Cuenta creada. Revisa tu correo para confirmar tu direccion antes de iniciar sesion.",
         values,
       };
+    }
+  }
+
+  // Ensure puesto/area are persisted (fallback in case DB trigger failed)
+  if (data.user) {
+    try {
+      await prisma.user.upsert({
+        where: { id: data.user.id },
+        update: {
+          puestoId: parsed.data.puestoId,
+          areaId: parsed.data.areaId,
+          nombre: parsed.data.nombre,
+          apellido: parsed.data.apellido,
+        },
+        create: {
+          id: data.user.id,
+          email: parsed.data.email,
+          nombre: parsed.data.nombre,
+          apellido: parsed.data.apellido,
+          puestoId: parsed.data.puestoId,
+          areaId: parsed.data.areaId,
+        },
+      });
+
+      await asignarTareasOnboarding(data.user.id, parsed.data.puestoId);
+    } catch {
+      // Non-fatal: user is created, onboarding tasks are optional
     }
   }
 

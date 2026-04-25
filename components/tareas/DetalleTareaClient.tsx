@@ -46,6 +46,7 @@ import {
   editarChecklistItemTexto,
   editarTareaInstancia,
   eliminarItemChecklistAdHoc,
+  eliminarTareaInstancia,
   iniciarTarea,
   marcarChecklistAdHocItem,
   marcarChecklistItem,
@@ -450,6 +451,7 @@ export function DetalleTareaClient({
             {tarea.estado !== "COMPLETADA" && tarea.estado !== "BLOQUEADA" && tarea.estado !== "OMITIDA" && (
               <ModalBloqueo tareaId={tarea.id} />
             )}
+            <ModalEliminarTarea tareaId={tarea.id} />
           </div>
 
           {tarea.estado === "COMPLETADA" && (
@@ -475,6 +477,61 @@ export function DetalleTareaClient({
         </aside>
       </div>
     </>
+  );
+}
+
+function ModalEliminarTarea({ tareaId }: { tareaId: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const onConfirmar = () => {
+    startTransition(async () => {
+      const res = await eliminarTareaInstancia(tareaId);
+      if (!res.success) {
+        toast.error(res.error ?? "Error al eliminar");
+        setOpen(false);
+        return;
+      }
+      toast.success("Tarea eliminada");
+      router.back();
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            variant="ghost"
+            className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 />
+            Eliminar tarea
+          </Button>
+        }
+      />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>¿Eliminar esta tarea?</DialogTitle>
+          <DialogDescription>
+            Se eliminará permanentemente junto con su checklist y progreso. Esta acción no se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={isPending}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={onConfirmar}
+            disabled={isPending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isPending ? "Eliminando…" : "Sí, eliminar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

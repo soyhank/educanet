@@ -16,6 +16,7 @@ import { KanbanMiembro } from "@/components/tareas/jefe/KanbanMiembro";
 import { PanelAdHocsValidacion } from "@/components/tareas/jefe/PanelAdHocsValidacion";
 import { ModalAsignarTarea } from "@/components/tareas/jefe/ModalAsignarTarea";
 import { VelocimetroMini } from "@/components/tareas/jefe/VelocimetroMini";
+import { BotonOnboarding } from "@/app/(admin)/admin/usuarios/[id]/BotonOnboarding";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata = { title: "Tareas del miembro" };
@@ -61,11 +62,14 @@ export default async function MiembroDetallePage({
             {miembro.area?.nombre ? ` · ${miembro.area.nombre}` : ""}
           </p>
         </div>
-        <ModalAsignarTarea
-          asignadoAId={miembro.id}
-          asignadoANombre={`${miembro.nombre} ${miembro.apellido}`}
-          catalogoAsignable={catalogoAsignable}
-        />
+        <div className="flex items-center gap-2">
+          <BotonOnboarding userId={miembro.id} />
+          <ModalAsignarTarea
+            asignadoAId={miembro.id}
+            asignadoANombre={`${miembro.nombre} ${miembro.apellido}`}
+            catalogoAsignable={catalogoAsignable}
+          />
+        </div>
       </header>
 
       <Card>

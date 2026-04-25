@@ -48,6 +48,7 @@ export function InlineText({
   className,
   inputClassName,
   maxLength,
+  onEditingChange,
 }: {
   value: string;
   onSave: (nuevo: string) => Promise<SaveResult>;
@@ -58,6 +59,7 @@ export function InlineText({
   className?: string;
   inputClassName?: string;
   maxLength?: number;
+  onEditingChange?: (editing: boolean) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [local, setLocal] = useState(value);
@@ -81,6 +83,7 @@ export function InlineText({
   const commit = () => {
     const limpio = local.trim();
     setEditing(false);
+    onEditingChange?.(false);
     if (limpio === display.trim()) return;
     if (!limpio && !allowEmpty) {
       toast.error("No puede quedar vacío");
@@ -108,7 +111,7 @@ export function InlineText({
     return (
       <button
         type="button"
-        onClick={() => setEditing(true)}
+        onClick={() => { setEditing(true); onEditingChange?.(true); }}
         className={cn(
           "group relative inline-flex items-center gap-1.5 rounded-md px-1 -mx-1 text-left transition-colors hover:bg-muted/60 focus:bg-muted/60 focus:outline-none",
           className,
@@ -122,7 +125,7 @@ export function InlineText({
   }
 
   return (
-    <span className="inline-flex flex-col gap-1">
+    <span className={cn("flex flex-col gap-1", className)}>
       <Input
         ref={inputRef}
         value={local}
@@ -135,6 +138,7 @@ export function InlineText({
           } else if (e.key === "Escape") {
             setLocal(display);
             setEditing(false);
+            onEditingChange?.(false);
           }
         }}
         maxLength={maxLength}
@@ -142,9 +146,6 @@ export function InlineText({
           "ring-2 ring-primary/40 animate-[pulse-edit_1.5s_ease-in-out_infinite]",
           inputClassName,
         )}
-        style={{
-          minWidth: Math.max(180, (local.length || placeholder.length) * 8) + "px",
-        }}
       />
       {allowEmpty && emptyHint && !local.trim() && (
         <span className="text-xs text-muted-foreground italic">{emptyHint}</span>

@@ -109,6 +109,7 @@ export async function crearWorkflowDesdeTemplate(
         fechaEstimadaInicio,
         fechaEstimadaFin,
         estado: "PENDIENTE",
+        requiereValidacionJefe: true,
       },
     });
     tareasCreadas++;

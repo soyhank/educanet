@@ -579,7 +579,7 @@ export async function asignarTareaDirecta(input: {
         fechaEstimadaInicio: input.fechaEstimadaInicio,
         fechaEstimadaFin: fin,
         estado: "PENDIENTE",
-        requiereValidacionJefe: false,
+        requiereValidacionJefe: true,
       },
     });
 
@@ -1067,4 +1067,30 @@ export async function validarCoberturaAction(params: {
 }) {
   const { validarCoberturaWorkflow } = await import("./validacion-cobertura");
   return validarCoberturaWorkflow(params);
+}
+
+export async function eliminarTareaInstancia(
+  tareaId: string,
+): Promise<Result> {
+  const user = await requireAuth();
+
+  const tarea = await prisma.tareaInstancia.findUnique({
+    where: { id: tareaId },
+    select: { asignadoAId: true },
+  });
+  if (!tarea) return { success: false, error: "Tarea no encontrada" };
+
+  const esAdmin = user.rol === "ADMIN" || user.rol === "RRHH";
+  const esElEmpleado = tarea.asignadoAId === user.id;
+  const esJefe = user.puesto?.nombre?.startsWith("Jefe") ?? false;
+  if (!esAdmin && !esElEmpleado && !esJefe) {
+    return { success: false, error: "Sin permiso" };
+  }
+
+  await prisma.tareaInstancia.delete({ where: { id: tareaId } });
+
+  revalidatePath("/mi-progreso");
+  revalidatePath("/mi-equipo");
+  revalidatePath(`/tareas/${tareaId}`);
+  return { success: true };
 }

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UsuarioInfoForm } from "./usuario-info-form";
 import { UsuarioGamificacion } from "./usuario-gamificacion";
+import { BotonOnboarding } from "./BotonOnboarding";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,9 @@ export default async function AdminUsuarioDetallePage({
             <Badge variant="outline">{usuario.rol}</Badge>
             <Badge variant="outline">{usuario.activo ? "Activo" : "Inactivo"}</Badge>
             {usuario.puesto && <Badge variant="outline">{usuario.puesto.nombre}</Badge>}
+          </div>
+          <div className="mt-3">
+            <BotonOnboarding userId={usuario.id} />
           </div>
         </div>
         <div className="text-right text-sm">

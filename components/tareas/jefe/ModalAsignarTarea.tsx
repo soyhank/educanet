@@ -22,7 +22,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { asignarTareaDirecta } from "@/lib/tareas/actions";
@@ -126,7 +125,7 @@ export function ModalAsignarTarea({
           </Button>
         }
       />
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Asignar tarea a {asignadoANombre}</DialogTitle>
           <DialogDescription>
@@ -158,13 +157,22 @@ export function ModalAsignarTarea({
             <div className="space-y-2">
               <Label htmlFor="cat">Tarea</Label>
               <Select value={catalogoId} onValueChange={(v) => setCatalogoId(v ?? "")}>
-                <SelectTrigger id="cat">
-                  <SelectValue placeholder="Buscá una tarea" />
+                <SelectTrigger id="cat" className="w-full">
+                  {catalogoId ? (
+                    <span className="truncate">
+                      {catalogoAsignable.find((c) => c.id === catalogoId)?.nombre}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">Buscá una tarea</span>
+                  )}
                 </SelectTrigger>
                 <SelectContent>
                   {catalogoAsignable.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.nombre} · {c.puntosBase}pts · {c.tiempoMinimoMin}-{c.tiempoMaximoMin}m
+                      <span className="font-medium">{c.nombre}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {c.puntosBase}pts · {c.tiempoMinimoMin}-{c.tiempoMaximoMin}m
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>

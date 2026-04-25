@@ -19,6 +19,7 @@ export function ChecklistItemRow({
   readOnly = false,
   onToggle,
   onEditarTexto,
+  onEditingChange,
   size = "sm",
 }: {
   itemPlantillaId: string;
@@ -32,6 +33,7 @@ export function ChecklistItemRow({
   readOnly?: boolean;
   onToggle: (nuevo: boolean) => void;
   onEditarTexto: (nuevo: string) => Promise<SaveResult>;
+  onEditingChange?: (isEditing: boolean) => void;
   size?: "sm" | "md";
 }) {
   const textoVisible = descripcionOverride?.trim() || descripcionOriginal;
@@ -80,8 +82,9 @@ export function ChecklistItemRow({
             allowEmpty={!!descripcionOverride}
             emptyHint="Al guardar vacío vuelve al texto original"
             placeholder="Texto del paso"
-            className={cn("block", textSize)}
+            className={cn("flex-1 min-w-0", textSize)}
             inputClassName={cn("h-auto py-1", textSize)}
+            onEditingChange={onEditingChange}
           />
           {!obligatorio && (
             <span className="ml-1 text-[10px] text-muted-foreground flex-shrink-0">

@@ -17,6 +17,7 @@ import {
   Target,
   Beaker,
   ShieldCheck,
+  ListTodo,
 } from "lucide-react";
 import { EducanetLogo } from "@/components/shared/EducanetLogo";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,7 @@ const secciones = [
       { label: "Cursos", href: "/admin/cursos", icon: BookOpen, check: puedeGestionarCursos },
       { label: "Badges", href: "/admin/badges", icon: Trophy, check: puedeGestionarBadges },
       { label: "KPIs", href: "/admin/kpis", icon: Target, check: puedeGestionarCursos },
+      { label: "Catálogo de tareas", href: "/admin/catalogo-tareas", icon: ListTodo, check: puedeGestionarCursos },
     ],
   },
   {
