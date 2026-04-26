@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { otorgarPuntos } from "@/lib/gamificacion/puntos";
 import { verificarBadges } from "@/lib/gamificacion/badges";
 import { registrarActividad } from "@/lib/gamificacion/rachas";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { randomBytes } from "crypto";
 import { generarPDFCertificado } from "@/lib/certificados/generador";
 import { subirCertificado } from "@/lib/certificados/storage";
@@ -156,6 +156,7 @@ export async function marcarLeccionCompletada(leccionId: string) {
   revalidatePath(`/cursos/${curso.slug}`);
   revalidatePath("/cursos");
   revalidatePath("/logros");
+  revalidateTag(`cursos-usuario-${user.id}`, "max");
 
   return {
     puntosGanados: leccion.puntosRecompensa,

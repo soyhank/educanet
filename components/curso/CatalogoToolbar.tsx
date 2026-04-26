@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useQueryState, parseAsString, parseAsStringLiteral } from "nuqs";
 import { Search, LayoutGrid, List, SlidersHorizontal } from "lucide-react";
-import { useCallback, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,42 +13,44 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { ordenValues, vistaValues } from "@/lib/cursos/filtros-params";
+
+const sharedOpts = { shallow: false, scroll: false } as const;
+const shallowOpts = { shallow: true, scroll: false } as const;
 
 export function CatalogoToolbar({
   onOpenFilters,
 }: {
   onOpenFilters?: () => void;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const vista = searchParams.get("vista") ?? "grid";
-  const orden = searchParams.get("orden") ?? "recientes";
-  const [busqueda, setBusqueda] = useState(searchParams.get("busqueda") ?? "");
-
-  const updateParams = useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      Object.entries(updates).forEach(([key, val]) => {
-        if (val === null || val === "") {
-          params.delete(key);
-        } else {
-          params.set(key, val);
-        }
-      });
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    },
-    [router, pathname, searchParams]
+  const [orden, setOrden] = useQueryState(
+    "orden",
+    parseAsStringLiteral(ordenValues).withDefault("recientes").withOptions(sharedOpts)
+  );
+  // Vista is client-only — no server re-render needed
+  const [vista, setVista] = useQueryState(
+    "vista",
+    parseAsStringLiteral(vistaValues).withDefault("grid").withOptions(shallowOpts)
+  );
+  const [busquedaUrl, setBusquedaUrl] = useQueryState(
+    "busqueda",
+    parseAsString.withDefault("").withOptions(sharedOpts)
   );
 
-  // Debounced search
+  // Local state for debounce — avoids server call on every keystroke
+  const [busquedaLocal, setBusquedaLocal] = useState(busquedaUrl);
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      updateParams({ busqueda: busqueda || null });
+      setBusquedaUrl(busquedaLocal || null);
     }, 400);
     return () => clearTimeout(timer);
-  }, [busqueda, updateParams]);
+  }, [busquedaLocal, setBusquedaUrl]);
+
+  // Keep local in sync if URL changes externally (e.g. clear filters)
+  useEffect(() => {
+    setBusquedaLocal(busquedaUrl);
+  }, [busquedaUrl]);
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -57,8 +59,8 @@ export function CatalogoToolbar({
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Buscar cursos..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
+          value={busquedaLocal}
+          onChange={(e) => setBusquedaLocal(e.target.value)}
           className="pl-9"
         />
       </div>
@@ -66,7 +68,7 @@ export function CatalogoToolbar({
       {/* Sort */}
       <Select
         value={orden}
-        onValueChange={(v) => updateParams({ orden: v })}
+        onValueChange={(v) => setOrden(v as typeof ordenValues[number])}
       >
         <SelectTrigger className="w-[160px]">
           <SelectValue />
@@ -84,7 +86,7 @@ export function CatalogoToolbar({
           variant="ghost"
           size="icon-sm"
           className={cn(vista === "grid" && "bg-muted")}
-          onClick={() => updateParams({ vista: "grid" })}
+          onClick={() => setVista("grid")}
           aria-label="Vista cuadricula"
         >
           <LayoutGrid className="h-4 w-4" />
@@ -93,7 +95,7 @@ export function CatalogoToolbar({
           variant="ghost"
           size="icon-sm"
           className={cn(vista === "list" && "bg-muted")}
-          onClick={() => updateParams({ vista: "list" })}
+          onClick={() => setVista("list")}
           aria-label="Vista lista"
         >
           <List className="h-4 w-4" />

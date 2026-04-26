@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { cacheLife, cacheTag } from "next/cache";
 import type { NivelCurso } from "@prisma/client";
 import type {
   CursoListado,
@@ -21,6 +22,10 @@ type ListarCursosParams = {
 export async function listarCursos(
   params: ListarCursosParams
 ): Promise<CursoListado[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("cursos", `cursos-usuario-${params.userId}`);
+
   const cursos = await prisma.curso.findMany({
     where: {
       publicado: true,
@@ -105,7 +110,7 @@ export async function listarCursos(
     };
   });
 
-  // Filter by estado
+  // Filter by estado post-query (calculated field)
   let filtered = result;
   if (params.estado) {
     filtered = filtered.filter((c) => c.estado === params.estado);
@@ -249,6 +254,10 @@ export async function obtenerCursosSimilares(
   areaId: string | null,
   limite = 3
 ): Promise<CursoListado[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("cursos-similares", `cursos-similares-${cursoId}`);
+
   const cursos = await prisma.curso.findMany({
     where: {
       publicado: true,
@@ -288,5 +297,8 @@ export async function obtenerCursosSimilares(
 }
 
 export async function listarAreas() {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("areas");
   return prisma.area.findMany({ orderBy: { nombre: "asc" } });
 }

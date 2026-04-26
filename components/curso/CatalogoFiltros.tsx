@@ -1,57 +1,52 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useCallback } from "react";
+import { useQueryState, parseAsString, parseAsStringLiteral } from "nuqs";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import {
+  nivelValues,
+  estadoValues,
+} from "@/lib/cursos/filtros-params";
 
 type Area = { id: string; nombre: string; color: string };
 
 const niveles = [
-  { value: "BASICO", label: "Basico" },
-  { value: "INTERMEDIO", label: "Intermedio" },
-  { value: "AVANZADO", label: "Avanzado" },
+  { value: "BASICO" as const, label: "Basico" },
+  { value: "INTERMEDIO" as const, label: "Intermedio" },
+  { value: "AVANZADO" as const, label: "Avanzado" },
 ];
 
 const estados = [
-  { value: "", label: "Todos" },
-  { value: "no-iniciado", label: "No iniciado" },
-  { value: "en-progreso", label: "En progreso" },
-  { value: "completado", label: "Completado" },
+  { value: "" as const, label: "Todos" },
+  { value: "no-iniciado" as const, label: "No iniciado" },
+  { value: "en-progreso" as const, label: "En progreso" },
+  { value: "completado" as const, label: "Completado" },
 ];
 
-export function CatalogoFiltros({ areas }: { areas: Area[] }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+const sharedOpts = { shallow: false, scroll: false } as const;
 
-  const areaId = searchParams.get("area") ?? "";
-  const nivel = searchParams.get("nivel") ?? "";
-  const estado = searchParams.get("estado") ?? "";
+export function CatalogoFiltros({ areas }: { areas: Area[] }) {
+  const [areaId, setAreaId] = useQueryState(
+    "area",
+    parseAsString.withDefault("").withOptions(sharedOpts)
+  );
+  const [nivel, setNivel] = useQueryState(
+    "nivel",
+    parseAsStringLiteral(nivelValues).withOptions(sharedOpts)
+  );
+  const [estado, setEstado] = useQueryState(
+    "estado",
+    parseAsStringLiteral(estadoValues).withOptions(sharedOpts)
+  );
 
   const hasFilters = areaId || nivel || estado;
 
-  const updateParam = useCallback(
-    (key: string, value: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (value) {
-        params.set(key, value);
-      } else {
-        params.delete(key);
-      }
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    },
-    [router, pathname, searchParams]
-  );
-
   const clearFilters = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("area");
-    params.delete("nivel");
-    params.delete("estado");
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    setAreaId("");
+    setNivel(null);
+    setEstado(null);
   };
 
   return (
@@ -61,7 +56,7 @@ export function CatalogoFiltros({ areas }: { areas: Area[] }) {
         <h4 className="mb-2 text-sm font-medium">Area</h4>
         <div className="space-y-1">
           <button
-            onClick={() => updateParam("area", "")}
+            onClick={() => setAreaId("")}
             className={cn(
               "flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors",
               !areaId ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"
@@ -72,7 +67,7 @@ export function CatalogoFiltros({ areas }: { areas: Area[] }) {
           {areas.map((area) => (
             <button
               key={area.id}
-              onClick={() => updateParam("area", area.id)}
+              onClick={() => setAreaId(area.id)}
               className={cn(
                 "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
                 areaId === area.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"
@@ -97,7 +92,7 @@ export function CatalogoFiltros({ areas }: { areas: Area[] }) {
           {niveles.map((n) => (
             <button
               key={n.value}
-              onClick={() => updateParam("nivel", nivel === n.value ? "" : n.value)}
+              onClick={() => setNivel(nivel === n.value ? null : n.value)}
               className={cn(
                 "flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors",
                 nivel === n.value ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"
@@ -118,10 +113,10 @@ export function CatalogoFiltros({ areas }: { areas: Area[] }) {
           {estados.map((e) => (
             <button
               key={e.value}
-              onClick={() => updateParam("estado", e.value)}
+              onClick={() => setEstado(e.value || null)}
               className={cn(
                 "flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors",
-                estado === e.value ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"
+                (estado ?? "") === e.value ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"
               )}
             >
               {e.label}

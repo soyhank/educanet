@@ -1,10 +1,9 @@
 import { requireAuth } from "@/lib/auth";
 import { listarCursos, listarAreas } from "@/lib/cursos/queries";
+import { filtrosCursosCache } from "@/lib/cursos/filtros-params";
 import { CatalogoPagina } from "@/components/curso/CatalogoPagina";
 import { CursoGrid } from "@/components/curso/CursoGrid";
 import Link from "next/link";
-import type { NivelCurso } from "@prisma/client";
-import type { EstadoCurso } from "@/types/cursos";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Cursos" };
@@ -15,25 +14,17 @@ export default async function CursosPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const user = await requireAuth();
-  const params = await searchParams;
-
-  const soloMios = params["mis-cursos"] === "true";
-  const areaId = params.area;
-  const nivel = params.nivel as NivelCurso | undefined;
-  const estado = params.estado as EstadoCurso | undefined;
-  const busqueda = params.busqueda;
-  const orden = (params.orden ?? "recientes") as
-    | "recientes"
-    | "alfabetico"
-    | "duracion";
+  const rawParams = await searchParams;
+  const { area, nivel, estado, busqueda, orden } = filtrosCursosCache.parse(rawParams);
+  const soloMios = rawParams["mis-cursos"] === "true";
 
   const [cursos, areas] = await Promise.all([
     listarCursos({
       userId: user.id,
-      areaId,
-      nivel,
-      estado,
-      busqueda,
+      areaId: area || undefined,
+      nivel: nivel ?? undefined,
+      estado: estado ?? undefined,
+      busqueda: busqueda || undefined,
       orden,
       soloMios,
     }),
